@@ -1,168 +1,152 @@
-#mg4.1
-#works for 100% viable [remember it didn't work for fully forested before] 
-#Jen Bradham and Clara yip
-#Last run 3/21/17
+# mg4.1
+# Jen Bradham, Clara Yip, Max Guillet
 
-#Variables chosen:
-#ellipse CI = 0.8
-#step direction = uniform 
-#distance per step = exp dist(0:maxDist, rate = 6.672)
-#crossing
-#   stay if step length > 0.25*maxDist
-#   else 0.5 probability to cross 
+# move_grid : holds the number of times a peccary has crossed each space
+  # 0 = forested
+# forest_id_grid : tracks forest id
 
+# x_length        : x size of grid
+# y_length        : y size of grid
+# count_forest    : number of forests
+# percent_forest  : percent of grid that is forested
+# steps           : number of steps for simulation to run
+# max_dist        : maximum distance a peccary can move in one step
+# iter            : number of iterations
 
-simulateMovement <- function(xLength, yLength, seeds, viable, steps, maxDist, iter) {
+simulate_movement <- function(x_length, y_length, count_forest, percent_forest, 
+                             steps, max_dist, iter) {
   library(plyr)
   library(RColorBrewer)
   library(car)
   library(fields)
   
-##### SeedMap: Generates coordinates for forested seeds
-  ## For one to the number of seeds, randomly sample one number between 1 and xLength and one number between 1 and ylength. Check to make sure that number hasn't been chosen before. Create a grid that is x by y and give each cell in that grid a value of 0. 
-  
-  seedMap <- function() {
-    for (i in 1:seeds) {
-      
-      x <- sample(1:xLength, 1)      #chooses random x coor 
-      y <- sample(1:yLength, 1)      #chooses random y coor 
-      while (!is.na(grid[x, y])) {     #ensures patch hasn't been picked yet
-        x <- sample(1:xLength, 1)  
-        y <- sample(1:yLength, 1)
+  ## gen_grids: Generates move_grid and forest grid
+  gen_grids <- function() {
+    for (i in 1:count_forest) {
+      x <- sample(1:x_length, 1)
+      y <- sample(1:y_length, 1)
+      while (!is.na(move_grid[x, y])) {
+        x <- sample(1:x_length, 1)  
+        y <- sample(1:y_length, 1)
       }
-      grid[x, y] <<- 0         #sets patch value to 0    
-      patchesGrid[x, y] <<- i        #numbers seeds (whatever number seed it is) --> seeding same position on grid and patches grid
-      updatePatchesGrid(x, y)       #in case seeds are generated next to each other
-      xViable <<- c(xViable, x)       #adds newly viable patch coordinates to lists
-      yViable <<- c(yViable, y) #xviable = vector of coordinates of forested patches
+      move_grid[x, y] <<- 0   
+      forest_id_grid[x, y] <<- i
+      update_forest_id(x, y)
+      x_forested <<- c(x_forested, x)
+      y_forested <<- c(y_forested, y)
     }
   }
 
-
-##### isInBounds: Checks to see if the x and y coordinates are actually on the grid
-  ## takes the x and y coordinate and ensures they are greater than zero and makes sure x is less than or equal to xlength and y is less than or equal to ylength
-  isInBounds <- function(x, y) {
-    checkX <- (x > 0) && (x <= xLength)
-    checkY <- (y > 0) && (y <= yLength)
-    return (checkX && checkY) 
+  ## in_bounds: verifies x and y coords are in bounds of grid
+  in_bounds <- function(x, y) {
+    check_x <- (x > 0) && (x <= x_length)
+    check_y <- (y > 0) && (y <= y_length)
+    return (check_x && check_y) 
   }
 
-  
-##### getCoor: Gets the new coordinate after moving x distance in y direction from the original point
-  ## Directions are a quadrant and move clockwise beginning with 9:00 == 1, 12:00 == 2, 3:00 == 3, and 4:00 == 4 
-  getCoor <- function(x, y, direction, distance) {
+  ## get_coor: Gets the new coordinate after move (1, 2, 3, 4 = l, u, r, d)
+  get_coor <- function(x, y, direction, distance) {
     if (direction == 1) {
-      newCoor <- c(x-distance, y)
+      new_coor <- c(x - distance, y)
     } else if (direction == 2) {
-      newCoor <- c(x, y+distance)
+      new_coor <- c(x, y + distance)
     } else if (direction == 3) {
-      newCoor <- c(x+distance, y)
+      new_coor <- c(x + distance, y)
     } else {
-      newCoor <- c(x, y-distance)
+      new_coor <- c(x, y - distance)
     }
-    return(newCoor)  
+    return(new_coor)  
   }
 
-  
-##### UpdatePatchesGrid: checks to see if any neighboring viable (forested) patches are numbered differently and if so, changes to ensure all are numbered the same
-  ## defines the cell one unit to the left of the current cell as "left", one cell above the current cell as "up", by using the getCoor (get new coordinate) function. If XXX and XXX are not equal to zero and XXX is not equal to the current x and y input values (the current cell), the replace that cell (left, right, up, or down) with the curNum (current x number)
-  updatePatchesGrid <- function(curX, curY) {
-    curNum <- patchesGrid[curX, curY]
-    left <- getCoor(curX, curY, 1, 1)
-    up <- getCoor(curX, curY, 2, 1)
-    right <- getCoor(curX, curY, 3, 1)
-    down <- getCoor(curX, curY, 4, 1)
+  ## update_forest_id : sets neighboring forest cells to same forest id
+  update_forest_id <- function(cur_x, cur_y) {
+    cur_num <- forest_id_grid[cur_x, cur_y]
+    left <- get_coor(cur_x, cur_y, 1, 1)
+    up <- get_coor(cur_x, cur_y, 2, 1)
+    right <- get_coor(cur_x, cur_y, 3, 1)
+    down <- get_coor(cur_x, cur_y, 4, 1)
     
-    #short-circuits if out of bounds or not-viable 
-    if (isInBounds(left[1], left[2]) && patchesGrid[left[1], left[2]] != 0 && patchesGrid[left[1], left[2]] != curNum) {
-      #replace all instances of leftNum in patchesGrid with curNum
-      patchesGrid[patchesGrid==patchesGrid[left[1], left[2]]] <<- curNum
-    } else if (isInBounds(up[1], up[2]) &&  patchesGrid[up[1], up[2]] != 0 && patchesGrid[up[1], up[2]] != curNum) {
-      patchesGrid[patchesGrid== patchesGrid[up[1], up[2]]] <<- curNum
-    } else if (isInBounds(right[1], right[2]) && patchesGrid[right[1], right[2]] != 0 && patchesGrid[right[1], right[2]] != curNum) {
-      patchesGrid[patchesGrid==patchesGrid[right[1], right[2]]] <<- curNum
-    } else if (isInBounds(down[1], down[2]) && patchesGrid[down[1], down[2]] != 0 && patchesGrid[down[1], down[2]] != curNum) {
-      patchesGrid[patchesGrid==patchesGrid[down[1], down[2]]] <<- curNum
+    if (in_bounds(left[1], left[2]) && forest_id_grid[left[1], left[2]] != 0 && 
+        forest_id_grid[left[1], left[2]] != cur_num) {
+      forest_id_grid[forest_id_grid==forest_id_grid[left[1], left[2]]] <<- 
+        cur_num
+    } else if (in_bounds(up[1], up[2]) &&  forest_id_grid[up[1], up[2]] != 0 && 
+               forest_id_grid[up[1], up[2]] != cur_num) {
+      forest_id_grid[forest_id_grid== forest_id_grid[up[1], up[2]]] <<- cur_num
+    } else if (in_bounds(right[1], right[2]) && forest_id_grid[right[1], 
+                                                               right[2]] != 0 &&
+               forest_id_grid[right[1], right[2]] != cur_num) {
+      forest_id_grid[forest_id_grid==forest_id_grid[right[1], right[2]]] <<- 
+        cur_num
+    } else if (in_bounds(down[1], down[2]) && forest_id_grid[down[1], down[2]] 
+               != 0 && forest_id_grid[down[1], down[2]] != cur_num) {
+      forest_id_grid[forest_id_grid==forest_id_grid[down[1], down[2]]] <<- 
+        cur_num
     }
     
   }
-  
 
-##### nucleateMap: Calculates how many cells need to be added to the seed to create the desired percent forest cover
-  ## viable = percent forest cover from 10:100 in increments of 10. viablePatches calculates the number of cells needed to be "viable" in order to reach the desired percent of forest cover. To create the forested patch, from one to the number of viable patches minus the number of seeds, choose a coordinate from the xviable/yviable list. Then choose a random direction. Get the x and y coordinate of the new point. Test to see if that point is in bounds and is not an existing point. Give it a value of zero and then update the x and y coordiantes to "added = true", meaning they've been added as viable/forested cells
-
-  
-  nucleateMap <- function() {
-    viablePatches <- as.integer(viable/100 * area)
-    for (i in 1:(viablePatches-seeds)) {
+  ## grow_forests: grows forests until desired percent forest cover is reached
+  grow_forests <- function() {
+    expected_count_forest <- as.integer(percent_forest / 100 * area)
+    for (i in 1:(expected_count_forest - count_forest)) {
       added <- FALSE
       while (!added) {
-        index <- sample(1:length(xViable), 1)
-        x <- xViable[index] #just the value of how far into the list we want to go so it does choose a pair
-        y <- yViable[index]
+        index <- sample(1:length(x_forested), 1)
+        x <- x_forested[index]
+        y <- y_forested[index]
         direction <- sample(1:4, 1)
-        toAdd <- getCoor(x, y, direction, 1)
-        nextX <- toAdd[1]
-        nextY <- toAdd[2]
-        if (isInBounds(nextX, nextY) && is.na(grid[nextX, nextY])) {
-          grid[nextX, nextY] <<- 0  #mark it as viable by making it a zero 
-          patchesGrid[nextX, nextY] <<- patchesGrid[x,y] # and then number it based on which seed it nucleated from  
-          updatePatchesGrid(nextX, nextY)
-          xViable <<- c(xViable, nextX)
-          yViable <<- c(yViable, nextY)
+        to_add <- get_coor(x, y, direction, 1)
+        next_x <- to_add[1]
+        next_y <- to_add[2]
+        if (in_bounds(next_x, next_y) && is.na(move_grid[next_x, next_y])) {
+          move_grid[next_x, next_y] <<- 0
+          forest_id_grid[next_x, next_y] <<- forest_id_grid[x,y]  
+          update_forest_id(next_x, next_y)
+          x_forested <<- c(x_forested, next_x)
+          y_forested <<- c(y_forested, next_y)
           added <- TRUE 
         }
       }
     }
   }
-
   
-##### addSecondaries: creating a list of the viable/forested cell coordinates
-  ## from 1 to dist, get the random new coordinate x and y values. Create a table with a row of x values and a row of y values
-  
-  #adds patches along the next path 
-  addSecondaries <- function(x1, y1, dir, dist) {
-    xPath <- c()
-    yPath <- c()
-    x <- x1
-    y <- y1
+  ## get_path: rets list of cells on path
+  get_path <- function(x_orig, y_orig, direction, dist) {
+    x_path <- c()
+    y_path <- c()
+    x <- x_orig
+    y <- y_orig
     for (i in 1:dist) {
-      nextCoor <- getCoor(x, y, dir, 1)
+      nextCoor <- get_coor(x, y, direction, 1)
       x <- nextCoor[1]
       y <- nextCoor[2]
-      xPath <- c(xPath, x)
-      yPath <- c(yPath, y)
+      x_path <- c(x_path, x)
+      y_path <- c(y_path, y)
     }
-    return(rbind(xPath, yPath))
+    return(rbind(x_path, y_path))
   }
 
-  
-##### allViable: tests to see if every patch in the path is viable/forested
-  ## first row of values from 'path' are x values and second row are y values. Check to make sure the x value is ...*** Check to see if the xviable path can be done without accessing the 'crossing' function
-  #end point is in bounds -> all points are in bounds
-  allViable <- function(path) {
+  ## all_forest: check if every cell in the path is forested
+  all_forest <- function(path) {
     xPath <- path[1,]
     yPath <- path[2,]
     for (i in 1:length(xPath)) {
-      if (is.na(grid[xPath[i], yPath[i]])) {
+      if (is.na(move_grid[xPath[i], yPath[i]])) {
         return(FALSE)
       }
     }
     return(TRUE)
   }
 
-
-##### countNonViable: counts number of cells in the predicted path that are non-viable 
-  ## initialize the counter to a value of zero. For each coordinate in the path, counter = counter + 1 if that coordinate lands on a cell with a value of 'na'
-  
-  #counts number of patches/squares in path that are non-viable
-  countNonViable <- function(path) {
-    xCoors <- path[1,]
-    yCoors <- path[2,]
-    len <- length(xCoors)
+  ## count_nonforested: counts number of cells in  path that are non-forested
+  count_nonforested <- function(path) {
+    x_coors <- path[1, ]
+    y_coors <- path[2, ]
+    len <- length(x_coors)
     counter <- 0
     for (i in 1:len) {
-      if (is.na(grid[xCoors[i], yCoors[i]])) {
+      if (is.na(move_grid[x_coors[i], y_coors[i]])) {
         counter <- counter + 1
       }
     }
@@ -170,16 +154,12 @@ simulateMovement <- function(xLength, yLength, seeds, viable, steps, maxDist, it
   }
 
   
-##### chooseCross: peccary decides whether or not to cross the matrix (non-viable land).
-  ## If the number of non-viable cells is greater than 0.25 * max step distance, then the peccary stays on the cell it's at. Else, make a decision whether to cross (choose 1 or 2 so that's a 50/50 chance of crossing). If it's a 1, then the peccary stays where it is the "hit" count of that cell increases by 1. If a 2 is chosen, then the peccary crosses the matrix [to another forested patch]
-  ## Clara, we don't increase the counter if they stay on that same patch, correct? only if they cross?
-  
-  #end point is viable, not all patches in path are viable
-  chooseCross <- function(path, dist) {
-    if (countNonViable(path) > 0.25*maxDist) { ################# CHANGE VALUE
+  ## choose_cross: peccary decides whether or not to cross nonforested cell
+  choose_cross <- function(path, dist) {
+    if (count_nonforested(path) > 0.25 * max_dist) {
       return(rbind(path[1], path[2]))  #stay
     } else {
-      decision <- sample(1:2, 1)    ##############50/50 prob
+      decision <- sample(1:2, 1)
       if (decision == 1) {  #stay
         return(rbind(path[1], path[2]))
       } else { #cross
@@ -191,23 +171,20 @@ simulateMovement <- function(xLength, yLength, seeds, viable, steps, maxDist, it
 
   
 
-##### nextPath: generates a vector of the coordinates of the next path that the peccary is scheduled to take
-  ## Randomly get a direction (left, right, up, or down). Randomly choose a step length from the exponential distribution, multiply it by the max dist and add 1. Based on this direction and this step length, get the coordinates of the endpoint for this path. If this endpoint is in bounds and is on a forested patch then, return the coordinates of the path if the path is all forested. If the path is not all forested, go to the choosecross function to determine whether to cross or stay.
-  
-  #generates a pair of vectors 
-  #returns coordinates of next path
-  nextPath <- function(x, y) {
-    #choose end point (dir + dist)
-    genDir <- sample(1:4, 1)
-    genDist <- as.integer(rexp(1,rate=6.672) * maxDist) + 1   
-    endPoint <- getCoor(x, y, genDir, genDist)
+  ## next_path: generate next path
+  next_path <- function(x, y) {
+    direction <- sample(1:4, 1)
+    dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1   
+    endpoint <- get_coor(x, y, direction, dist)
     
-    if (isInBounds(endPoint[1], endPoint[2]) && !is.na(grid[endPoint[1], endPoint[2]])) {   #check if na, can't end in non-forested land b/c na= matrix
-      path <- addSecondaries(x, y, genDir, genDist)
-      if (allViable(path)) { ##allviable means we can do this path without crossing
+    # verify endpoint is forested
+    if (in_bounds(endpoint[1], endpoint[2]) && !is.na(move_grid[endpoint[1], 
+                                                                endpoint[2]])) {
+      path <- get_path(x, y, direction, dist)
+      if (all_forest(path)) {
         return(path)
-      } else {  #if not, we do have to cross so we go to the choose cross whole probability function thing
-        path <- chooseCross(path, genDist)
+      } else {
+        path <- choose_cross(path, dist)
         return(path)
       }
       return(path)
@@ -217,39 +194,38 @@ simulateMovement <- function(xLength, yLength, seeds, viable, steps, maxDist, it
 
   
   
-##### walkPath: peccary moves across the chosen path and the counter on the grid matrix records the number of times a peccary hits each cell
-  ## divide the path vector into x coordinates and y coordinates. For each coordinate, if the x and y coordinates are not na on the grid matrix, count = count + 1. If they are na? 
-  
-  walkPath <- function(path) {
-    xCoors <- path[1,]
-    yCoors <- path[2,]
-    len <- length(xCoors)
+  ## walk: peccary walks a given path
+  walk <- function(path) {
+    x_coors <- path[1,]
+    y_coors <- path[2,]
+    len <- length(x_coors)
     
     for (i in 1:len) {
-      if ((!is.na(grid[xCoors[i], yCoors[i]]))) {
-        grid[xCoors[i], yCoors[i]] <<- grid[xCoors[i], yCoors[i]] + 1  #grid holds the number of times it's been treaded over. So this is our counter. counter = counter + 1 with each tread
+      if ((!is.na(move_grid[x_coors[i], y_coors[i]]))) {
+        move_grid[x_coors[i], y_coors[i]] <<- move_grid[x_coors[i], 
+                                                        y_coors[i]] + 1
       }
     }
-    last <- c(xCoors[len], yCoors[len])
+    last <- c(x_coors[len], y_coors[len])
     return(last)
   }
 
  
    
-##### simulateMovement: ***This is a simulatemovement function within the larger simulatemovement function? What is this part specifically doing?
-  ## Choose a starting coordinate from the viable array. For each step, ...?
+##### simulate_movement: ***This is a simulatemovement function within the larger simulatemovement function? What is this part specifically doing?
+  ## Choose a starting coordinate from the percent_forest array. For each step, ...?
   
-  simulateMovement <- function() {
-    startIndex <- sample(1:length(xViable), 1)
-    startX <- xViable[startIndex]
-    startY <- yViable[startIndex]
+  simulate_movement <- function() {
+    startIndex <- sample(1:length(x_forested), 1)
+    startX <- x_forested[startIndex]
+    startY <- y_forested[startIndex]
     
     for (i in 1:steps) {
-      path <- nextPath(startX, startY)
+      path <- next_path(startX, startY)
       while (is.null(path)) {
-        path <- nextPath(startX, startY)
+        path <- next_path(startX, startY)
       }
-      endIndex <- walkPath(path)
+      endIndex <- walk(path)
       startX <- endIndex[1]
       startY <- endIndex[2]
     }
@@ -258,125 +234,122 @@ simulateMovement <- function(xLength, yLength, seeds, viable, steps, maxDist, it
   
   
   
-##### avgDistPatches: Calculates the distance between forested patches and records only the n shortest distances, where n = #unique patches minus one
-  ## get all unique numbers on the patchesGrid matrix and sort in ascending order (numbers the forested patches uniquely). The number of patches is 1 minus the length of that list. Renumber each patch starting with 0. Create a matrix ...***
-  
-  avgDistPatches <- function() {
-    #number of patches
-    uniq <- sort(unique(as.vector(patchesGrid)), decreasing = FALSE)
-    patchNum <- length(uniq) - 1
+  ## avg_dist_forests: calculates mean distance between forests
+  avg_dist_forests <- function() {
+    forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
+    patch_num <- length(forests) - 1
     
-    
-    if(patchNum == 0) {
+    if(patch_num == 0) {
       return(0)
     }
     
-    #renumber patches in patchesGrid
-    ord <- 0:patchNum
-    for (i in 1:length(uniq)) {
-      patchesGrid[patchesGrid==uniq[i]] <<- ord[i]
+    # renumber patches in forest_id_grid
+    ord <- 0:patch_num
+    for (i in 1:length(forests)) {
+      forest_id_grid[forest_id_grid == forests[i]] <<- ord[i]
     }
     
-    patchVecs <- matrix(rep(list(), patchNum*2), nrow = patchNum, ncol = 2) #patch coor holder
-    #for every forested patch, add to corresponding list 
-    for (i in 1:length(xViable)) {
-      num <- patchesGrid[xViable[i], yViable[i]]
-      patchVecs[[num]] <- c(patchVecs[[num]], xViable[i])
-      patchVecs[[num+patchNum]] <- c(patchVecs[[num+patchNum]], yViable[i])
+    patch_vecs <- matrix(rep(list(), patch_num*2), nrow = patch_num, ncol = 2)
+    
+    # for every forested patch, add to corresponding list 
+    for (i in 1:length(x_forested)) {
+      num <- forest_id_grid[x_forested[i], y_forested[i]]
+      patch_vecs[[num]] <- c(patch_vecs[[num]], x_forested[i])
+      patch_vecs[[num+patch_num]] <- c(patch_vecs[[num+patch_num]], 
+                                       y_forested[i])
     }
     
-    #image(1:xLength, 1:yLength, patchesGrid, col =  brewer.pal(5, "OrRd"))
-    plot(xViable, yViable)
+    plot(x_forested, y_forested)
     
-    patchConf <- matrix(rep(list(), patchNum), nrow = patchNum, ncol = 1)  #ellipse coors holder
-    #draw ellipse for each patch
-    for (i in 1:patchNum) {     #confidence levels mutable, must change dataframe result as well 
-      patchConf[[i]] <-  dataEllipse(patchVecs[[i]], patchVecs[[i+patchNum]], levels=c(0.8), center.pch=19, center.cex=1.5, plot.points=FALSE)
+    patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
+    
+    # draw ellipse for each patch
+    for (i in 1:patch_num) {
+      patch_conf[[i]] <-  dataEllipse(patch_vecs[[i]], 
+                                      patch_vecs[[i+patch_num]], levels=c(0.8), 
+                                      center.pch=19, center.cex=1.5, 
+                                      plot.points=FALSE)
     }
     
     #calc distance min distance between patch ellipses
-    if (patchNum == 1) {
+    
+    if (patch_num == 1) {
       return(0)
     } else {
-      distHolder <- vector()
-      for (i in 1:patchNum) {
-        for (j in 1:patchNum) {
-          if (i != j && i < j) {  #no repeat combinations
-            minDist <- min(rdist(patchConf[[i]], patchConf[[j]]))  #calculates minimum distance between two patches 
-            distHolder <- c(distHolder, minDist)
+      dist_holder <- vector()
+      for (i in 1:patch_num) {
+        for (j in 1:patch_num) {
+          if (i != j && i < j) {
+            min_dist <- min(rdist(patch_conf[[i]], patch_conf[[j]])) 
+            dist_holder <- c(dist_holder, min_dist)
           }
         }
       }
-      #print(distHolder)
-      return(mean(distHolder))
+      return(mean(dist_holder))
     }
   }
 
-  
-  
-##### Begin model here
-  
-  
+  # START MODEL
   
   #generate matrices for landscape and movement
-  grid <- matrix(NA, nrow = xLength, ncol = yLength) #viable / non-viable and movement
-  patchesGrid <- matrix(0L, nrow = xLength, ncol = yLength) #viable / nonviable put just uses it as a counter for the number of patches
+  move_grid <- matrix(NA, nrow = x_length, ncol = y_length)
+  forest_id_grid <- matrix(0L, nrow = x_length, ncol = y_length)
   
-  #seed map
-  xViable <- vector()
-  yViable <- vector()
-  seedMap()
+  #generate grids
+  x_forested <- vector()
+  y_forested <- vector()
+  gen_grids()
   
-  #nucleate map
-  area <- xLength * yLength
-  if (viable > 100 || viable < (seeds/area)) { ## if viable is greater than 100 or it's less than seeds/area, note that this is invalid
-    print("percent viable invalid")
+  #grow forests
+  area <- x_length * y_length
+  if (percent_forest > 100 || percent_forest < (count_forest/area)) {
+    print("percent percent_forest invalid")
     break
   }
-  nucleateMap()
+  grow_forests()
   
   
-  #save & output results
-  #create file name
-  fileName <- paste("Uniform", toString(seeds), toString(viable), toString(steps), iter, sep="_")
+  #save & output results to file_name
+  file_name <- paste("Uniform", toString(count_forest), 
+                     toString(percent_forest), toString(steps), iter, sep="_")
   
   
   #create/save the 'before' map visual 
-  grid1 <- replace(grid, is.na(grid), -10)
-  img <- image(1:xLength, 1:yLength, grid1, col =  brewer.pal(3, "OrRd")) 
-  fileNameJPGMap <- paste(fileName, "grid", "before", ".jpeg", sep = "")
-  dev.copy(jpeg, fileNameJPGMap)
+  grid_1 <- replace(move_grid, is.na(move_grid), -10)
+  img <- image(1:x_length, 1:y_length, grid_1, col =  brewer.pal(3, "OrRd")) 
+  file_name_jpg_map <- paste(file_name, "move_grid", "before", ".jpeg", sep = "")
+  dev.copy(jpeg, file_name_jpg_map)
   dev.off()
   
   crossed <- 0
-  simulateMovement() 
-  avgDist <- avgDistPatches()
+  simulate_movement() 
+  avgDist <- avg_dist_forests()
   
   #create/save the 'post' map visual 
-  grid1 <- replace(grid, is.na(grid), -10)
-  img <- image(1:xLength, 1:yLength, grid1, col =  brewer.pal(9, "OrRd")) 
-  fileNameJPGMap <- paste(fileName, "grid", "post", ".jpeg", sep = "")
-  dev.copy(jpeg, fileNameJPGMap)
+  grid_1 <- replace(move_grid, is.na(move_grid), -10)
+  img <- image(1:x_length, 1:y_length, grid_1, col =  brewer.pal(9, "OrRd")) 
+  file_name_jpg_map <- paste(file_name, "move_grid", "post", ".jpeg", sep = "")
+  dev.copy(jpeg, file_name_jpg_map)
   dev.off()
   
   #create/save histogram recording the frequency distribution of hit cells
-  hist(grid, freq=TRUE, xlab = "Number of times treaded", col =  brewer.pal(10, "Spectral"), breaks=20,  xlim = c(0,120), ylim= c(0,4000))
-  fileNameJPGHist <- paste(fileName, "hist", ".jpeg", sep = "")
-  dev.copy(jpeg, fileNameJPGHist)
+  hist(move_grid, freq=TRUE, xlab = "Number of times treaded", col =  brewer.pal(10, "Spectral"), breaks=20,  xlim = c(0,120), ylim= c(0,4000))
+  file_name_jpg_hist <- paste(file_name, "hist", ".jpeg", sep = "")
+  dev.copy(jpeg, file_name_jpg_hist)
   dev.off()
   
   #create/save frequency table of number of cell hits and their frequency of occurence --> *** same data as histogram uses, correct?
-  maxTread <- max(grid, na.rm =TRUE)
-  nums <- c(0:maxTread)
-  freqAll <- count(as.vector(grid))
-  freq0 <- freqAll[1,2]
-  frequencies <- c(freq0, tabulate(as.vector(grid)))
+  max_tread <- max(move_grid, na.rm =TRUE)
+  nums <- c(0:max_tread)
+  freq_all <- count(as.vector(move_grid))
+  freq_0 <- freq_all[1,2]
+  frequencies <- c(freq_0, tabulate(as.vector(move_grid)))
   freq <- setNames(frequencies, nums)
-  viablePatches <- as.integer(viable/100 * area)
-  percents <- frequencies/as.integer(viablePatches)
+  expected_count_forest <- as.integer(percent_forest/100 * area)
+  percents <- frequencies/as.integer(expected_count_forest)
   freq = rbind(freq, percents)
-  fileNameCSV <- paste(fileName, "freq", ".csv", sep = "")
-  write.csv(freq, file = fileNameCSV)
+  file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
+  write.csv(freq, file = file_name_csv)
   
   return(c(freq[2,1], crossed, avgDist)) 
 }
