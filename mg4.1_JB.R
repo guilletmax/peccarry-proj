@@ -216,18 +216,18 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   ## Choose a starting coordinate from the percent_forest array. For each step, ...?
   
   simulate_movement <- function() {
-    startIndex <- sample(1:length(x_forested), 1)
-    startX <- x_forested[startIndex]
-    startY <- y_forested[startIndex]
+    start_index <- sample(1:length(x_forested), 1)
+    start_x <- x_forested[start_index]
+    start_y <- y_forested[start_index]
     
     for (i in 1:steps) {
-      path <- next_path(startX, startY)
+      path <- next_path(start_x, start_y)
       while (is.null(path)) {
-        path <- next_path(startX, startY)
+        path <- next_path(start_x, start_y)
       }
-      endIndex <- walk(path)
-      startX <- endIndex[1]
-      startY <- endIndex[2]
+      end_index <- walk(path)
+      start_x <- end_index[1]
+      start_y <- end_index[2]
     }
   }
   
@@ -235,86 +235,93 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   
   
   ## avg_dist_forests: calculates mean distance between forests
-  avg_dist_forests <- function() {
-    forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
-    patch_num <- length(forests) - 1
-    
-    if(patch_num == 0) {
-      return(0)
-    }
-    
-    # renumber patches in forest_id_grid
-    ord <- 0:patch_num
-    for (i in 1:length(forests)) {
-      forest_id_grid[forest_id_grid == forests[i]] <<- ord[i]
-    }
-    
-    patch_vecs <- matrix(rep(list(), patch_num*2), nrow = patch_num, ncol = 2)
-    
-    # for every forested patch, add to corresponding list 
-    for (i in 1:length(x_forested)) {
-      num <- forest_id_grid[x_forested[i], y_forested[i]]
-      patch_vecs[[num]] <- c(patch_vecs[[num]], x_forested[i])
-      patch_vecs[[num+patch_num]] <- c(patch_vecs[[num+patch_num]], 
-                                       y_forested[i])
-    }
-    
-    plot(x_forested, y_forested)
-    
-    patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
-    
-    # draw ellipse for each patch
-    for (i in 1:patch_num) {
-      patch_conf[[i]] <-  dataEllipse(patch_vecs[[i]], 
-                                      patch_vecs[[i+patch_num]], levels=c(0.8), 
-                                      center.pch=19, center.cex=1.5, 
-                                      plot.points=FALSE)
-    }
-    
-    #calc distance min distance between patch ellipses
-    
-    if (patch_num == 1) {
-      return(0)
-    } else {
-      dist_holder <- vector()
-      for (i in 1:patch_num) {
-        for (j in 1:patch_num) {
-          if (i != j && i < j) {
-            min_dist <- min(rdist(patch_conf[[i]], patch_conf[[j]])) 
-            dist_holder <- c(dist_holder, min_dist)
-          }
-        }
-      }
-      return(mean(dist_holder))
-    }
-  }
+  # avg_dist_forests <- function() {
+  #   forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
+  #   patch_num <- length(forests) - 1
+  #   
+  #   if(patch_num == 0) {
+  #     return(0)
+  #   }
+  #   
+  #   
+  #   # what is this doing ??
+  #   # renumber patches in forest_id_grid
+  #   ord <- 0:patch_num
+  #   browser()
+  #   for (i in 1:length(forests)) {
+  #     forest_id_grid[forest_id_grid == forests[i]] <<- ord[i]
+  #   }
+  #   
+  #   patch_vecs <- matrix(rep(list(), patch_num * 2), nrow = patch_num, ncol = 2)
+  #   
+  #   browser()
+  #   
+  #   # for every forested patch, add to corresponding list 
+  #   for (i in 1:length(x_forested)) {
+  #     num <- forest_id_grid[x_forested[i], y_forested[i]]
+  #     patch_vecs[[num]] <- c(patch_vecs[[num]], x_forested[i])
+  #     patch_vecs[[num + patch_num]] <- c(patch_vecs[[num + patch_num]], 
+  #                                      y_forested[i])
+  #   }
+  #   
+  #   plot(x_forested, y_forested)
+  #   
+  #   patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
+  #   
+  #   # draw ellipse for each patch
+  #   for (i in 1:patch_num) {
+  #     patch_vecs
+  #     patch_vecs[[i + patch_num]]
+  #     patch_conf[[i]] <-  dataEllipse(patch_vecs[[i]], 
+  #                                     patch_vecs[[i + patch_num]], levels=c(0.8), 
+  #                                     center.pch=19, center.cex=1.5, 
+  #                                     plot.points=FALSE)
+  #   }
+  #   
+  #   # calc distance min distance between patch ellipses
+  #   
+  #   if (patch_num == 1) {
+  #     return(0)
+  #   } else {
+  #     dist_holder <- vector()
+  #     for (i in 1:patch_num) {
+  #       for (j in 1:patch_num) {
+  #         if (i != j && i < j) {
+  #           min_dist <- min(rdist(patch_conf[[i]], patch_conf[[j]])) 
+  #           dist_holder <- c(dist_holder, min_dist)
+  #         }
+  #       }
+  #     }
+  #     return(mean(dist_holder))
+  #   }
+  # }
 
   # START MODEL
   
-  #generate matrices for landscape and movement
+  # generate matrices for landscape and movement
   move_grid <- matrix(NA, nrow = x_length, ncol = y_length)
   forest_id_grid <- matrix(0L, nrow = x_length, ncol = y_length)
   
-  #generate grids
+  # generate grids
   x_forested <- vector()
   y_forested <- vector()
   gen_grids()
   
-  #grow forests
+  # grow forests
   area <- x_length * y_length
-  if (percent_forest > 100 || percent_forest < (count_forest/area)) {
+  if (percent_forest > 100 || percent_forest < (count_forest / area)) {
     print("percent percent_forest invalid")
     break
   }
   grow_forests()
   
   
-  #save & output results to file_name
+  # save & output results to file_name
   file_name <- paste("Uniform", toString(count_forest), 
                      toString(percent_forest), toString(steps), iter, sep="_")
   
   
-  #create/save the 'before' map visual 
+  # create/save the 'before' map visual 
   grid_1 <- replace(move_grid, is.na(move_grid), -10)
   img <- image(1:x_length, 1:y_length, grid_1, col =  brewer.pal(3, "OrRd")) 
   file_name_jpg_map <- paste(file_name, "move_grid", "before", ".jpeg", sep = "")
@@ -323,22 +330,25 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   
   crossed <- 0
   simulate_movement() 
-  avgDist <- avg_dist_forests()
+  # avg_dist <- avg_dist_forests()
   
-  #create/save the 'post' map visual 
+  # create/save the 'post' map visual 
   grid_1 <- replace(move_grid, is.na(move_grid), -10)
   img <- image(1:x_length, 1:y_length, grid_1, col =  brewer.pal(9, "OrRd")) 
   file_name_jpg_map <- paste(file_name, "move_grid", "post", ".jpeg", sep = "")
   dev.copy(jpeg, file_name_jpg_map)
   dev.off()
   
-  #create/save histogram recording the frequency distribution of hit cells
-  hist(move_grid, freq=TRUE, xlab = "Number of times treaded", col =  brewer.pal(10, "Spectral"), breaks=20,  xlim = c(0,120), ylim= c(0,4000))
+  # create/save histogram recording the frequency distribution of hit cells
+  hist(move_grid, freq=TRUE, xlab = "Number of times treaded", col = 
+         brewer.pal(10, "Spectral"), breaks = 20,  xlim = c(0,120), 
+       ylim = c(0,4000))
   file_name_jpg_hist <- paste(file_name, "hist", ".jpeg", sep = "")
   dev.copy(jpeg, file_name_jpg_hist)
   dev.off()
   
-  #create/save frequency table of number of cell hits and their frequency of occurence --> *** same data as histogram uses, correct?
+  # create/save frequency table of number of cell hits and their frequency of 
+  # occurence --> *** same data as histogram uses, correct?
   max_tread <- max(move_grid, na.rm =TRUE)
   nums <- c(0:max_tread)
   freq_all <- count(as.vector(move_grid))
@@ -351,6 +361,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
   
-  return(c(freq[2,1], crossed, avgDist)) 
+  # return(c(freq[2,1], crossed, avgDist)) 
+  return(c(freq[2,1], crossed))
 }
 
