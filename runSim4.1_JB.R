@@ -4,7 +4,7 @@
 
 # UPDATE VARS
 
-setwd("TODO")
+setwd("C:/Users/guill/Downloads")
 
 #x_length <- 10
 #y_length <- 10
@@ -28,7 +28,7 @@ for (i in 1:10) {
   print(paste("Simulating", i*10, "percent viable", sep = " "))
   for (j in 1:30) {
     print(".")
-    result <- simulate_movement(10, 10, 2, (i * 10), 200,
+    result <- simulate_movement(10, 10, 3, (i * 10), 200,
                                 3, j)
     freq_holder[i, j] <- result[1]                    
     times_crossed[i, j] <- result[2]

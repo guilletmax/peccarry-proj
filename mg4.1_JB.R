@@ -231,70 +231,99 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     }
   }
   
+  euc_distance <- function(p1, p2) sqrt(sum((p1 - p2)^2))
+  
+  avg_dist_forests <- function() {
+    forests <- sort(unique(as.vector(forest_id_grid)))[-1]
+    patch_num <- length(forests)
+    total_dist <- 0
+    count <- 0
+    for(i in 1:(patch_num - 1)) {
+      for(j in (i+1):patch_num) {
+        forest_i <- which(forest_id_grid == i, arr.ind=TRUE)
+        forest_j <- which(forest_id_grid == j, arr.ind=TRUE)
+        
+        # find min distance between forest_i and forest_j
+        min_distance <- 999999999.0
+        for(n in forest_i) {
+          for(m in forest_j) {
+            curr_distance <- euc_distance(forest_i[1,], forest_j[1,])
+            if(curr_distance < min_distance) {
+              min_distance <- curr_distance
+            }
+          }
+        }
+        total_dist <- total_dist + min_distance
+        count <- count + 1
+      }
+    }
+    min_avg_dist <- total_dist / count
+    browser()
+  }
   
   
   
   ## avg_dist_forests: calculates mean distance between forests
-  # avg_dist_forests <- function() {
-  #   forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
-  #   patch_num <- length(forests) - 1
-  #   
-  #   if(patch_num == 0) {
-  #     return(0)
-  #   }
-  #   
-  #   
-  #   # what is this doing ??
-  #   # renumber patches in forest_id_grid
-  #   ord <- 0:patch_num
-  #   browser()
-  #   for (i in 1:length(forests)) {
-  #     forest_id_grid[forest_id_grid == forests[i]] <<- ord[i]
-  #   }
-  #   
-  #   patch_vecs <- matrix(rep(list(), patch_num * 2), nrow = patch_num, ncol = 2)
-  #   
-  #   browser()
-  #   
-  #   # for every forested patch, add to corresponding list 
-  #   for (i in 1:length(x_forested)) {
-  #     num <- forest_id_grid[x_forested[i], y_forested[i]]
-  #     patch_vecs[[num]] <- c(patch_vecs[[num]], x_forested[i])
-  #     patch_vecs[[num + patch_num]] <- c(patch_vecs[[num + patch_num]], 
-  #                                      y_forested[i])
-  #   }
-  #   
-  #   plot(x_forested, y_forested)
-  #   
-  #   patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
-  #   
-  #   # draw ellipse for each patch
-  #   for (i in 1:patch_num) {
-  #     patch_vecs
-  #     patch_vecs[[i + patch_num]]
-  #     patch_conf[[i]] <-  dataEllipse(patch_vecs[[i]], 
-  #                                     patch_vecs[[i + patch_num]], levels=c(0.8), 
-  #                                     center.pch=19, center.cex=1.5, 
-  #                                     plot.points=FALSE)
-  #   }
-  #   
-  #   # calc distance min distance between patch ellipses
-  #   
-  #   if (patch_num == 1) {
-  #     return(0)
-  #   } else {
-  #     dist_holder <- vector()
-  #     for (i in 1:patch_num) {
-  #       for (j in 1:patch_num) {
-  #         if (i != j && i < j) {
-  #           min_dist <- min(rdist(patch_conf[[i]], patch_conf[[j]])) 
-  #           dist_holder <- c(dist_holder, min_dist)
-  #         }
-  #       }
-  #     }
-  #     return(mean(dist_holder))
-  #   }
-  # }
+   avg_dist_forests_old <- function() {
+     browser()
+     forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
+     patch_num <- length(forests) - 1
+     
+     if(patch_num == 0 || patch_num == 1) {
+       return(0)
+     }
+     
+     
+     # what is this doing ??
+     # renumber patches in forest_id_grid
+     ord <- 0:patch_num
+     for (i in 1:length(forests)) {
+       forest_id_grid[forest_id_grid == forests[i]] <<- ord[i]
+     }
+     
+     patch_vecs <- matrix(rep(list(), patch_num * 2), nrow = patch_num, ncol = 2)
+     
+     # for every forested patch, add to corresponding list 
+     for (i in 1:length(x_forested)) {
+       num <- forest_id_grid[x_forested[i], y_forested[i]]
+       patch_vecs[[num]] <- c(patch_vecs[[num]], x_forested[i])
+       patch_vecs[[num + patch_num]] <- c(patch_vecs[[num + patch_num]], 
+                                        y_forested[i])
+     }
+     
+     plot(x_forested, y_forested)
+     
+     patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
+     
+     browser()
+     
+     # draw ellipse for each patch
+     for (i in 1:patch_num) {
+       patch_vecs
+       patch_vecs[[i + patch_num]]
+       patch_conf[[i]] <-  dataEllipse(patch_vecs[[i]], 
+                                       patch_vecs[[i + patch_num]], levels=c(0.8), 
+                                       center.pch=19, center.cex=1.5, 
+                                       plot.points=FALSE)
+     }
+     
+     # calc distance min distance between patch ellipses
+     
+     if (patch_num == 1) {
+       return(0)
+     } else {
+       dist_holder <- vector()
+       for (i in 1:patch_num) {
+         for (j in 1:patch_num) {
+           if (i != j && i < j) {
+             min_dist <- min(rdist(patch_conf[[i]], patch_conf[[j]])) 
+             dist_holder <- c(dist_holder, min_dist)
+           }
+         }
+       }
+       return(mean(dist_holder))
+     }
+  }
 
   # START MODEL
   
@@ -330,7 +359,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   
   crossed <- 0
   simulate_movement() 
-  # avg_dist <- avg_dist_forests()
+  avg_dist <- avg_dist_forests()
   
   # create/save the 'post' map visual 
   grid_1 <- replace(move_grid, is.na(move_grid), -10)
@@ -360,6 +389,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   freq = rbind(freq, percents)
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
+  
   
   # return(c(freq[2,1], crossed, avgDist)) 
   return(c(freq[2,1], crossed))
