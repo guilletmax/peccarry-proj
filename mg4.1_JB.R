@@ -20,31 +20,42 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   library(car)
   library(fields)
   
-  ## gen_grids: Generates move_grid and forest grid
+  # gen_grids: Generates move_grid and forest_grid by placing forests in randomly sampled
+  # coordinates. 
   gen_grids <- function() {
+    
     for (i in 1:count_forest) {
       x <- sample(1:x_length, 1)
       y <- sample(1:y_length, 1)
+      
+      # check that location hasn't been set yet. if it has, find a new location
       while (!is.na(move_grid[x, y])) {
         x <- sample(1:x_length, 1)  
         y <- sample(1:y_length, 1)
       }
+      
+      #set move_grid to 0 (no peccary count)
       move_grid[x, y] <<- 0   
+      
+      #set forest_id_grid to the forest id i
       forest_id_grid[x, y] <<- i
+      
+      #update the forst id
       update_forest_id(x, y)
       x_forested <<- c(x_forested, x)
       y_forested <<- c(y_forested, y)
     }
+    
   }
 
-  ## in_bounds: verifies x and y coords are in bounds of grid
+  # in_bounds: verifies x and y coordinates are in bounds of grid
   in_bounds <- function(x, y) {
     check_x <- (x > 0) && (x <= x_length)
     check_y <- (y > 0) && (y <= y_length)
     return (check_x && check_y) 
   }
 
-  ## get_coor: Gets the new coordinate after move (1, 2, 3, 4 = l, u, r, d)
+  # get_coor: Gets the new coordinate after move (1, 2, 3, 4 = left, up, right, down)
   get_coor <- function(x, y, direction, distance) {
     if (direction == 1) {
       new_coor <- c(x - distance, y)
@@ -58,8 +69,9 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     return(new_coor)  
   }
 
-  ## update_forest_id : sets neighboring forest cells to same forest id
+  # update_forest_id : sets neighboring forest cells to same forest id
   update_forest_id <- function(cur_x, cur_y) {
+    # cur_num is the forest id
     cur_num <- forest_id_grid[cur_x, cur_y]
     left <- get_coor(cur_x, cur_y, 1, 1)
     up <- get_coor(cur_x, cur_y, 2, 1)
@@ -83,10 +95,9 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       forest_id_grid[forest_id_grid==forest_id_grid[down[1], down[2]]] <<- 
         cur_num
     }
-    
   }
 
-  ## grow_forests: grows forests until desired percent forest cover is reached
+  # grow_forests: grows forests until desired percent forest cover is reached
   grow_forests <- function() {
     expected_count_forest <- as.integer(percent_forest / 100 * area)
     for (i in 1:(expected_count_forest - count_forest)) {
@@ -111,7 +122,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     }
   }
   
-  ## get_path: rets list of cells on path
+  # get_path: returns list of cells on path
   get_path <- function(x_orig, y_orig, direction, dist) {
     x_path <- c()
     y_path <- c()
@@ -139,7 +150,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     return(TRUE)
   }
 
-  ## count_nonforested: counts number of cells in  path that are non-forested
+  # count_nonforested: counts number of cells in  path that are non-forested
   count_nonforested <- function(path) {
     x_coors <- path[1, ]
     y_coors <- path[2, ]
@@ -171,7 +182,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
 
   
 
-  ## next_path: generate next path
+  # next_path: generate next path
   next_path <- function(x, y) {
     direction <- sample(1:4, 1)
     dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1   
@@ -194,7 +205,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
 
   
   
-  ## walk: peccary walks a given path
+  # walk: peccary walks a given path
   walk <- function(path) {
     x_coors <- path[1,]
     y_coors <- path[2,]
@@ -212,8 +223,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
 
  
    
-##### simulate_movement: ***This is a simulatemovement function within the larger simulatemovement function? What is this part specifically doing?
-  ## Choose a starting coordinate from the percent_forest array. For each step, ...?
+  # simulate_movement: ***This is a simulatemovement function within the larger simulatemovement function? What is this part specifically doing?
+  # Choose a starting coordinate from the percent_forest array. For each step, ...?
   
   simulate_movement <- function() {
     start_index <- sample(1:length(x_forested), 1)
@@ -238,6 +249,9 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     patch_num <- length(forests)
     total_dist <- 0
     count <- 0
+    if(patch_num == 1) {
+      return(0)
+    }
     for(i in 1:(patch_num - 1)) {
       for(j in (i+1):patch_num) {
         forest_i <- which(forest_id_grid == i, arr.ind=TRUE)
@@ -245,27 +259,31 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         
         # find min distance between forest_i and forest_j
         min_distance <- 999999999.0
-        for(n in forest_i) {
-          for(m in forest_j) {
-            curr_distance <- euc_distance(forest_i[1,], forest_j[1,])
+        for(n in nrow(forest_i)) {
+          for(m in nrow(forest_j)) {
+            curr_distance <- euc_distance(forest_i[n,], forest_j[m,])
             if(curr_distance < min_distance) {
               min_distance <- curr_distance
             }
           }
         }
-        total_dist <- total_dist + min_distance
+        total_dist <- (total_dist + min_distance)
         count <- count + 1
       }
     }
+    cat("total dist: ", total_dist)
+    print('-')
+    cat("count: ", count)
+    print('-')
+    cat("total_dist / count", (total_dist / count))
+    print('-')
     min_avg_dist <- total_dist / count
-    browser()
   }
   
   
   
-  ## avg_dist_forests: calculates mean distance between forests
+   # avg_dist_forests: calculates mean distance between forests
    avg_dist_forests_old <- function() {
-     browser()
      forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
      patch_num <- length(forests) - 1
      
@@ -294,8 +312,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
      plot(x_forested, y_forested)
      
      patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
-     
-     browser()
      
      # draw ellipse for each patch
      for (i in 1:patch_num) {
@@ -344,11 +360,9 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   }
   grow_forests()
   
-  
   # save & output results to file_name
   file_name <- paste("Uniform", toString(count_forest), 
                      toString(percent_forest), toString(steps), iter, sep="_")
-  
   
   # create/save the 'before' map visual 
   grid_1 <- replace(move_grid, is.na(move_grid), -10)
@@ -358,7 +372,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   dev.off()
   
   crossed <- 0
-  simulate_movement() 
+  simulate_movement()
   avg_dist <- avg_dist_forests()
   
   # create/save the 'post' map visual 
@@ -390,8 +404,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
   
-  
-  # return(c(freq[2,1], crossed, avgDist)) 
-  return(c(freq[2,1], crossed))
+  return(c(freq[2,1], crossed, avg_dist)) 
 }
 
