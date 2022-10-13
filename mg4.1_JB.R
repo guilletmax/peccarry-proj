@@ -181,11 +181,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   }
 
   
-
   # next_path: generate next path
-  next_path <- function(x, y) {
-    direction <- sample(1:4, 1)
-    dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1   
+  next_path <- function(x, y, direction, dist) {
     endpoint <- get_coor(x, y, direction, dist)
     
     # verify endpoint is forested
@@ -195,15 +192,12 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       if (all_forest(path)) {
         return(path)
       } else {
-        path <- choose_cross(path, dist)
-        return(path)
+        return(choose_cross(path, dist))
       }
-      return(path)
     }
     return(c())
   }
 
-  
   
   # walk: peccary walks a given path
   walk <- function(path) {
@@ -221,29 +215,95 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     return(last)
   }
 
- 
    
   # simulate_movement: ***This is a simulatemovement function within the larger simulatemovement function? What is this part specifically doing?
   # Choose a starting coordinate from the percent_forest array. For each step, ...?
-  
   simulate_movement <- function() {
     start_index <- sample(1:length(x_forested), 1)
     start_x <- x_forested[start_index]
     start_y <- y_forested[start_index]
-    
+    energy <- 0
+    energy_vector <- c()
+    season <- 1
+    time <- 1
+    move_prob <- calc_move_prob(season, time)
+  
     for (i in 1:steps) {
-      path <- next_path(start_x, start_y)
-      while (is.null(path)) {
-        path <- next_path(start_x, start_y)
+      #update season every 90 days
+      if(i %% 1080 == 0) {
+        season <- next_season(season)
       }
-      end_index <- walk(path)
-      start_x <- end_index[1]
-      start_y <- end_index[2]
+      
+      #update time of day every 6 hours
+      if(i %% 3 == 0) {
+        time <- next_time_of_day(time)
+        move_prob <- calc_move_prob(season, time)
+      }
+      
+      if (sample(c(TRUE, FALSE), prob = c(move_prob, (1 - move_prob)))[1]) {
+        direction <- sample(1:4, 1)
+        dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1
+        path <- next_path(start_x, start_y, direction, dist)
+        while (is.null(path)) {
+          direction <- sample(1:4, 1)
+          dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1
+          path <- next_path(start_x, start_y, direction, dist)
+        }
+        energy <- energy - calc_energy_loss(dist)
+        energy <- energy + calc_energy_gain(path)
+        end_index <- walk(path)
+        start_x <- end_index[1]
+        start_y <- end_index[2]
+      } else {
+        # energy lost at basal metabolic rate
+        energy <- energy - 1418.6
+      }
+      energy_vector[i] <- energy
     }
+    plot(1:steps, energy_vector)
+  }
+  
+  # calculate probability that peccary moves based on season and time
+  calc_move_prob <- function(season, time) {
+    if(season == 1) {
+      return(switch(time, 0.15, 0.33, 0.35, 0.17))
+    } else if(season == 2 || season == 4) {
+      return(switch(time, .15, .42, .24, .16))
+    } else {
+      return(switch(time, .3, .22, .12, .333))
+    }
+  }
+  
+  # calculate the next season 1, 2, 3, 4 = winter, spring, summer, fall
+  next_season <- function(curr_season) {
+    return(if(curr_season == 4) 1 else curr_season + 1)
+  }
+  
+  # calculate the next time of day 1, 2, 3, 4 = morning, afternoon, evening, night
+  next_time_of_day <- function(curr_time) {
+    return(if(curr_time == 4) 1 else curr_time + 1)
+  }
+  
+  # calculate the energy gained by walking certain path
+  calc_energy_gain <- function(path) {
+    energy <- 0
+    
+    for(i in seq(from=1, to=length(path), by=2)) {
+      if(forest_id_grid[path[i], path[i + 1]] != 0) {
+        energy <- energy + (9.28 * 665 * 4.8)
+      }
+    }
+    return(energy)
+  }
+  
+  # calculate the energy lost for walking a distance
+  calc_energy_loss <- function(distance) {
+    return((5.8 * (1435)^(0.75) * 2) + (2.6 * (1435)^(0.6) * (distance * 4.8)))
   }
   
   euc_distance <- function(p1, p2) sqrt(sum((p1 - p2)^2))
   
+  # calculate the average minimum distance between each forest
   avg_dist_forests <- function() {
     forests <- sort(unique(as.vector(forest_id_grid)))[-1]
     patch_num <- length(forests)
@@ -271,12 +331,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         count <- count + 1
       }
     }
-    cat("total dist: ", total_dist)
-    print('-')
-    cat("count: ", count)
-    print('-')
-    cat("total_dist / count", (total_dist / count))
-    print('-')
     min_avg_dist <- total_dist / count
   }
   
