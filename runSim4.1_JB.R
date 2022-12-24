@@ -11,19 +11,20 @@ library(ggplot2)
 
 # UPDATE VARS
 
-setwd("C:/Users/guill/Downloads")
-x_length <- 50      # x size of grid
-y_length <- 50      # y size of grid
-count_forest <- 3   # number of forests
-steps <- 4320       # number of steps for simulation to run
+setwd("C:/Users/guill/Downloads/peccary_graphs")
+x_length <- 20      # x size of grid
+y_length <- 20      # y size of grid
+count_forest <- 8   # number of forests
+steps <- 4320       # number of steps for simulation to run ( 1 year )
 max_dist <- 3       # maximum distance a peccary can move in one step
-max_iter <- 10       # number of iterations
+max_iter <- 1      # number of iterations
 
 freq_holder <- matrix(0L, nrow =  10, ncol = max_iter)
 times_crossed <- matrix(0L, nrow =  10, ncol = max_iter)
 dist_bw_patches <- matrix(0L, nrow = 10, ncol = max_iter)
 
-for (percent_forest in seq(from=10, to=100, by=10)) {
+# from=10, to=100, by=10
+for (percent_forest in seq(from=100, to=10, by=-10)) {
   print(paste("Simulating", percent_forest, "percent viable", sep = " "))
   for (iter in 1:max_iter) {
     print('.')

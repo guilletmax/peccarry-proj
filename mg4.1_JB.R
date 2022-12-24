@@ -2,8 +2,8 @@
 # Jen Bradham, Clara Yip, Max Guillet
 
 # move_grid : holds the number of times a peccary has crossed each space
-  # 0 = forested
 # forest_id_grid : tracks forest id
+# energy_grid : holds the amount of energy at each cell
 
 # x_length        : x size of grid
 # y_length        : y size of grid
@@ -13,12 +13,20 @@
 # max_dist        : maximum distance a peccary can move in one step
 # iter            : number of iterations
 
+# description of time and space units: each cell is 30x30 meters
+# each step represents 3 hours
+
+DRY <- 1
+WET <- 2
+DEPLETION_LEVEL_CUTOFF <- 60
+
 simulate_movement <- function(x_length, y_length, count_forest, percent_forest, 
                              steps, max_dist, iter) {
   library(plyr)
   library(RColorBrewer)
   library(car)
   library(fields)
+  library(eva)
   
   # gen_grids: Generates move_grid and forest_grid by placing forests in randomly sampled
   # coordinates. 
@@ -40,14 +48,99 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       #set forest_id_grid to the forest id i
       forest_id_grid[x, y] <<- i
       
-      #update the forst id
+      #update the forest id
       update_forest_id(x, y)
       x_forested <<- c(x_forested, x)
       y_forested <<- c(y_forested, y)
     }
+  }
+  
+  
+  # simulate_movement peccary movement
+  simulate_movement <- function() {
+    start_index <- sample(1:length(x_forested), 1)
+    start_x <- x_forested[start_index]
+    start_y <- y_forested[start_index]
+    month <- 1
+    time <- 1
+    depletion_level <<- 100
+    depleted_counter <<- 0
+    non_depleted_counter <<- 0
+    stuck_counter <- 0
     
+    for (i in 1:steps) {
+
+      #update month every 30 days
+      if(i %% 240 == 0) {
+        month <- next_month(month)
+      }
+      # Patches are returned to, on average, every 364.5 hours, or 121 timesteps. every 30, we grow a quarter back
+      if(i %% 30 == 0) {
+        energy_grid <- apply(energy_grid, 1:2, restore_cell_energy)
+      }
+      
+      direction <- sample(1:4, 1)
+      dist <- calculate_walk_distance(month, depletion_level)
+      path <- next_path(start_x, start_y, direction, dist)
+      stuck_timer <- 10
+      while (is.null(path) && stuck_timer != 0) {
+        direction <- sample(1:4, 1)
+        dist <- calculate_walk_distance(month, depletion_level)
+        path <- next_path(start_x, start_y, direction, dist)
+        stuck_timer <- stuck_timer - 10
+      }
+      if(stuck_timer != 0) {
+        end_index <- walk(path)
+        start_x <- end_index[1]
+        start_y <- end_index[2]
+      } else {
+        depleted_counter <- depleted_counter + 1
+        stuck_counter <- stuck_counter + 1
+      }
+    }
+    print('depleted_counter')
+    print(depleted_counter)
+    print('non_depleted_counter')
+    print(non_depleted_counter)
+    print('stuck_counter')
+    print(stuck_counter)
   }
 
+  
+  # next_path: generate next path
+  next_path <- function(x, y, direction, dist) {
+    endpoint <- get_coor(x, y, direction, dist)
+    # verify endpoint is in bounds and forested
+    if (in_bounds(endpoint[1], endpoint[2]) && !is.na(move_grid[endpoint[1], 
+                                                                endpoint[2]])) {
+      return(get_path(x, y, direction, dist))
+    }
+    return(c())
+  }
+  
+  
+  # walk: peccary walks a given path, return last endpoint
+  walk <- function(path) {
+    x_coors <- path[1,]
+    y_coors <- path[2,]
+    len <- length(x_coors)
+    depletion_sum <- 0
+    for (i in 1:len) {
+      if ((!is.na(move_grid[x_coors[i], y_coors[i]]))) {
+        move_grid[x_coors[i], y_coors[i]] <<- move_grid[x_coors[i], 
+                                                        y_coors[i]] + 1
+      }
+      if ((!is.na(energy_grid[x_coors[i], y_coors[i]]))) {
+        depletion_sum <- depletion_sum + energy_grid[x_coors[i],
+                                                     y_coors[i]]
+        energy_grid[x_coors[i], y_coors[i]] <<- 0
+      }
+    }
+    depletion_level <<- depletion_sum / len
+    return(c(x_coors[len], y_coors[len]))
+  }
+  
+  
   # in_bounds: verifies x and y coordinates are in bounds of grid
   in_bounds <- function(x, y) {
     check_x <- (x > 0) && (x <= x_length)
@@ -55,6 +148,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     return (check_x && check_y) 
   }
 
+  
   # get_coor: Gets the new coordinate after move (1, 2, 3, 4 = left, up, right, down)
   get_coor <- function(x, y, direction, distance) {
     if (direction == 1) {
@@ -69,6 +163,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     return(new_coor)  
   }
 
+  
   # update_forest_id : sets neighboring forest cells to same forest id
   update_forest_id <- function(cur_x, cur_y) {
     # cur_num is the forest id
@@ -97,6 +192,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     }
   }
 
+  
   # grow_forests: grows forests until desired percent forest cover is reached
   grow_forests <- function() {
     expected_count_forest <- as.integer(percent_forest / 100 * area)
@@ -112,6 +208,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         next_y <- to_add[2]
         if (in_bounds(next_x, next_y) && is.na(move_grid[next_x, next_y])) {
           move_grid[next_x, next_y] <<- 0
+          energy_grid[next_x, next_y] <<- 100
           forest_id_grid[next_x, next_y] <<- forest_id_grid[x,y]  
           update_forest_id(next_x, next_y)
           x_forested <<- c(x_forested, next_x)
@@ -122,12 +219,16 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     }
   }
   
+  
   # get_path: returns list of cells on path
   get_path <- function(x_orig, y_orig, direction, dist) {
-    x_path <- c()
-    y_path <- c()
     x <- x_orig
     y <- y_orig
+    x_path <- c(x)
+    y_path <- c(y)
+    if(dist == 0) {
+      return(rbind(x_path, y_path))
+    }
     for (i in 1:dist) {
       nextCoor <- get_coor(x, y, direction, 1)
       x <- nextCoor[1]
@@ -138,170 +239,84 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     return(rbind(x_path, y_path))
   }
 
-  ## all_forest: check if every cell in the path is forested
-  all_forest <- function(path) {
-    xPath <- path[1,]
-    yPath <- path[2,]
-    for (i in 1:length(xPath)) {
-      if (is.na(move_grid[xPath[i], yPath[i]])) {
-        return(FALSE)
-      }
-    }
-    return(TRUE)
-  }
-
-  # count_nonforested: counts number of cells in  path that are non-forested
-  count_nonforested <- function(path) {
-    x_coors <- path[1, ]
-    y_coors <- path[2, ]
-    len <- length(x_coors)
-    counter <- 0
-    for (i in 1:len) {
-      if (is.na(move_grid[x_coors[i], y_coors[i]])) {
-        counter <- counter + 1
-      }
-    }
-    return(counter)
-  }
-
   
-  ## choose_cross: peccary decides whether or not to cross nonforested cell
-  choose_cross <- function(path, dist) {
-    if (count_nonforested(path) > 0.25 * max_dist) {
-      return(rbind(path[1], path[2]))  #stay
+  # calculate distance
+  calculate_walk_distance <- function(month, depletion_level) {
+    season <- calculate_season(month)
+    if(depletion_level < 60) {
+      depleted = TRUE
+      depleted_counter <<- depleted_counter + 1
     } else {
-      decision <- sample(1:2, 1)
-      if (decision == 1) {  #stay
-        return(rbind(path[1], path[2]))
-      } else { #cross
-        crossed <<- crossed + 1
-        return(path)
-      }
+      depleted = FALSE
+      non_depleted_counter <<- non_depleted_counter + 1
     }
-  }
-
-  
-  # next_path: generate next path
-  next_path <- function(x, y, direction, dist) {
-    endpoint <- get_coor(x, y, direction, dist)
-    
-    # verify endpoint is forested
-    if (in_bounds(endpoint[1], endpoint[2]) && !is.na(move_grid[endpoint[1], 
-                                                                endpoint[2]])) {
-      path <- get_path(x, y, direction, dist)
-      if (all_forest(path)) {
-        return(path)
-      } else {
-        return(choose_cross(path, dist))
-      }
-    }
-    return(c())
-  }
-
-  
-  # walk: peccary walks a given path
-  walk <- function(path) {
-    x_coors <- path[1,]
-    y_coors <- path[2,]
-    len <- length(x_coors)
-    
-    for (i in 1:len) {
-      if ((!is.na(move_grid[x_coors[i], y_coors[i]]))) {
-        move_grid[x_coors[i], y_coors[i]] <<- move_grid[x_coors[i], 
-                                                        y_coors[i]] + 1
-      }
-    }
-    last <- c(x_coors[len], y_coors[len])
-    return(last)
-  }
-
-   
-  # simulate_movement: ***This is a simulatemovement function within the larger simulatemovement function? What is this part specifically doing?
-  # Choose a starting coordinate from the percent_forest array. For each step, ...?
-  simulate_movement <- function() {
-    start_index <- sample(1:length(x_forested), 1)
-    start_x <- x_forested[start_index]
-    start_y <- y_forested[start_index]
-    energy <- 0
-    energy_vector <- c()
-    season <- 1
-    time <- 1
-    move_prob <- calc_move_prob(season, time)
-  
-    for (i in 1:steps) {
-      #update season every 90 days
-      if(i %% 1080 == 0) {
-        season <- next_season(season)
-      }
-      
-      #update time of day every 6 hours
-      if(i %% 3 == 0) {
-        time <- next_time_of_day(time)
-        move_prob <- calc_move_prob(season, time)
-      }
-      
-      if (sample(c(TRUE, FALSE), prob = c(move_prob, (1 - move_prob)))[1]) {
-        direction <- sample(1:4, 1)
-        dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1
-        path <- next_path(start_x, start_y, direction, dist)
-        while (is.null(path)) {
-          direction <- sample(1:4, 1)
-          dist <- as.integer(rexp(1,rate = 6.672) * max_dist) + 1
-          path <- next_path(start_x, start_y, direction, dist)
+    if (season == 3) {
+      if (!depleted) {
+        # for dry season if local patches not depleted
+        step <- rgpd(1,scale = 563.5,shape=-0.12)
+        while(step > 494){
+          step <- rgpd(1,scale = 563.5,shape=-0.12)
         }
-        energy <- energy - calc_energy_loss(dist)
-        energy <- energy + calc_energy_gain(path)
-        end_index <- walk(path)
-        start_x <- end_index[1]
-        start_y <- end_index[2]
       } else {
-        # energy lost at basal metabolic rate
-        energy <- energy - 1418.6
+        #for dry season if local patches depleted
+        step <- rgpd(1,scale = 563.5,shape=-0.12)
+        while(step < 494){
+          step <- rgpd(1,scale = 563.5,shape=-0.12)
+        }
       }
-      energy_vector[i] <- energy
-    }
-    plot(1:steps, energy_vector)
-  }
-  
-  # calculate probability that peccary moves based on season and time
-  calc_move_prob <- function(season, time) {
-    if(season == 1) {
-      return(switch(time, 0.15, 0.33, 0.35, 0.17))
-    } else if(season == 2 || season == 4) {
-      return(switch(time, .15, .42, .24, .16))
     } else {
-      return(switch(time, .3, .22, .12, .333))
-    }
-  }
-  
-  # calculate the next season 1, 2, 3, 4 = winter, spring, summer, fall
-  next_season <- function(curr_season) {
-    return(if(curr_season == 4) 1 else curr_season + 1)
-  }
-  
-  # calculate the next time of day 1, 2, 3, 4 = morning, afternoon, evening, night
-  next_time_of_day <- function(curr_time) {
-    return(if(curr_time == 4) 1 else curr_time + 1)
-  }
-  
-  # calculate the energy gained by walking certain path
-  calc_energy_gain <- function(path) {
-    energy <- 0
-    
-    for(i in seq(from=1, to=length(path), by=2)) {
-      if(forest_id_grid[path[i], path[i + 1]] != 0) {
-        energy <- energy + (9.28 * 665 * 4.8)
+      if (!depleted) {
+        # for wet season if local patches not depleted
+        step <- rgpd(1,scale = 432.6,shape=-0.029)
+        while(step > 494){
+          step <- rgpd(1,scale = 432.6,shape=-0.029)
+        }
+      } else {
+        # for wet season if local patches depleted
+        step <- rgpd(1,scale = 432.6,shape=-0.029)
+        while(step < 494){
+          step <- rgpd(1,scale = 432.6,shape=-0.029)
+        }
       }
     }
-    return(energy)
+    
+    # step is in meters / into 30x30 meter cells
+    return(floor(step / 30))
   }
   
-  # calculate the energy lost for walking a distance
-  calc_energy_loss <- function(distance) {
-    return((5.8 * (1435)^(0.75) * 2) + (2.6 * (1435)^(0.6) * (distance * 4.8)))
+  
+  #calculates dry or wet season based on month
+  calculate_season <- function(month) {
+    if(month < 5 || month > 10) {
+      return(DRY)
+    } else {
+      return(WET)
+    }
   }
+  
+  
+  #restores cells 25 % at a time
+  restore_cell_energy <- function(x) {
+    if(is.na(x)) {
+      return(NA)
+    }
+    sum <- x + 25
+    if (sum > 100) {
+      return(100)
+    } else {
+      return(sum)
+    }
+  }
+  
+  
+  # calculate the next month
+  next_month <- function(curr_month) {
+    return(if(curr_month == 12) 1 else curr_month + 1)
+  }
+  
   
   euc_distance <- function(p1, p2) sqrt(sum((p1 - p2)^2))
+  
   
   # calculate the average minimum distance between each forest
   avg_dist_forests <- function() {
@@ -336,71 +351,13 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   
   
   
-   # avg_dist_forests: calculates mean distance between forests
-   avg_dist_forests_old <- function() {
-     forests <- sort(unique(as.vector(forest_id_grid)), decreasing = FALSE)
-     patch_num <- length(forests) - 1
-     
-     if(patch_num == 0 || patch_num == 1) {
-       return(0)
-     }
-     
-     
-     # what is this doing ??
-     # renumber patches in forest_id_grid
-     ord <- 0:patch_num
-     for (i in 1:length(forests)) {
-       forest_id_grid[forest_id_grid == forests[i]] <<- ord[i]
-     }
-     
-     patch_vecs <- matrix(rep(list(), patch_num * 2), nrow = patch_num, ncol = 2)
-     
-     # for every forested patch, add to corresponding list 
-     for (i in 1:length(x_forested)) {
-       num <- forest_id_grid[x_forested[i], y_forested[i]]
-       patch_vecs[[num]] <- c(patch_vecs[[num]], x_forested[i])
-       patch_vecs[[num + patch_num]] <- c(patch_vecs[[num + patch_num]], 
-                                        y_forested[i])
-     }
-     
-     plot(x_forested, y_forested)
-     
-     patch_conf <- matrix(rep(list(), patch_num), nrow = patch_num, ncol = 1)
-     
-     # draw ellipse for each patch
-     for (i in 1:patch_num) {
-       patch_vecs
-       patch_vecs[[i + patch_num]]
-       patch_conf[[i]] <-  dataEllipse(patch_vecs[[i]], 
-                                       patch_vecs[[i + patch_num]], levels=c(0.8), 
-                                       center.pch=19, center.cex=1.5, 
-                                       plot.points=FALSE)
-     }
-     
-     # calc distance min distance between patch ellipses
-     
-     if (patch_num == 1) {
-       return(0)
-     } else {
-       dist_holder <- vector()
-       for (i in 1:patch_num) {
-         for (j in 1:patch_num) {
-           if (i != j && i < j) {
-             min_dist <- min(rdist(patch_conf[[i]], patch_conf[[j]])) 
-             dist_holder <- c(dist_holder, min_dist)
-           }
-         }
-       }
-       return(mean(dist_holder))
-     }
-  }
-
   # START MODEL
   
   # generate matrices for landscape and movement
   move_grid <- matrix(NA, nrow = x_length, ncol = y_length)
   forest_id_grid <- matrix(0L, nrow = x_length, ncol = y_length)
-  
+  energy_grid <- matrix(NA, nrow = x_length, ncol = y_length)
+
   # generate grids
   x_forested <- vector()
   y_forested <- vector()
@@ -413,7 +370,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     break
   }
   grow_forests()
-  
+
   # save & output results to file_name
   file_name <- paste("Uniform", toString(count_forest), 
                      toString(percent_forest), toString(steps), iter, sep="_")
