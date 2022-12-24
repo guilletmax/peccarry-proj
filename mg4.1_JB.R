@@ -243,7 +243,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   # calculate distance
   calculate_walk_distance <- function(month, depletion_level) {
     season <- calculate_season(month)
-    if(depletion_level < 60) {
+    if(depletion_level < DEPLETION_LEVEL_CUTOFF) {
       depleted = TRUE
       depleted_counter <<- depleted_counter + 1
     } else {
