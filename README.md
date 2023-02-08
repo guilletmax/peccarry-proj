@@ -7,14 +7,6 @@
     <li>
       <a href="#about-the-project">About The Project</a>
     </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
   </ol>
 </details>
 
@@ -23,7 +15,13 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-asdf
+**functions**
+
+_gen_grids_
+- This method generates the move_grid and forest_grid. The move_grid is initialized to an array of NA values. The forest_grid is created by generating random points for the center of each forest. Each forest grows until the maximum forest cover threshold is reached. 0s represent zells where the matrix exists, and numbers represent cells where the indicated forest exists.
+
+_simulate_movement_
+- This method simulates the peccary movement. It places the peccaries in a random forested cell. It tracks the date, time, depletion_level, depleted_counter, non_depleted_counter, stuck_counter, crossed_matrix_counter, and total_distance. For every step (3 hours), the peccary attempts to move. A random direction (up, left, right, down) and a random distance following the functions specified in _calculate_walk_distance_ is chosen. If the peccary is able to move in this path (it stays in bounds and lands in a forested cell or within MAX_CROSSING_DISTANCE of a forested cell) it walks. If not, it will attempt to generate new random path. If it makes as many attempted as the STUCK_TIMER, the peccary will not move and the timestep advances.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
