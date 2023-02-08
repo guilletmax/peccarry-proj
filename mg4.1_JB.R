@@ -386,8 +386,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     break
   }
   grow_forests()
-
-  browser()
   
   # save & output results to file_name
   file_name <- paste("Uniform", toString(count_forest), 
