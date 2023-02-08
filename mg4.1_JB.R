@@ -53,6 +53,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       #update_forest_id(x, y)
       x_forested <<- c(x_forested, x)
       y_forested <<- c(y_forested, y)
+      x_forests[[i]] <<- c(x)
+      y_forests[[i]] <<- c(y)
     }
   }
   
@@ -62,6 +64,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     start_index <- sample(1:length(x_forested), 1)
     start_x <- x_forested[start_index]
     start_y <- y_forested[start_index]
+    cur_forest_id <<- forest_id_grid[start_x, start_y]
     month <- 1
     time <- 1
     depletion_level <<- 100
@@ -139,7 +142,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     x_coors <- path[1,]
     y_coors <- path[2,]
     len <- length(x_coors)
-    crossed_matrix <- FALSE
     depletion_sum <- 0
     for (i in 1:len) {
       if ((!is.na(move_grid[x_coors[i], y_coors[i]]))) {
@@ -151,9 +153,10 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
                                                      y_coors[i]]
         energy_grid[x_coors[i], y_coors[i]] <<- 0
       }
-      if (!crossed_matrix && is.na(forest_id_grid[x_coors[i], y_coors[i]])) {
-        crossed_matrix_counter <- crossed_forest_counter + 1
-        crossed_matrix = TRUE
+      new_forest_id <- forest_id_grid[x_coors[i], y_coors[i]]
+      if (new_forest_id != 0 && new_forest_id != cur_forest_id) {
+        crossed_matrix_counter <<- crossed_matrix_counter + 1
+        cur_forest_id <<- new_forest_id
       }
     }
     depletion_level <<- depletion_sum / len
@@ -225,16 +228,54 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         if (in_bounds(next_x, next_y) && is.na(move_grid[next_x, next_y])) {
           move_grid[next_x, next_y] <<- 0
           energy_grid[next_x, next_y] <<- 100
-          forest_id_grid[next_x, next_y] <<- forest_id_grid[x,y]  
+          
+          cur_forest_id <- forest_id_grid[x,y]
+          forest_id_grid[next_x, next_y] <<- cur_forest_id
           update_forest_id(next_x, next_y)
           x_forested <<- c(x_forested, next_x)
           y_forested <<- c(y_forested, next_y)
+          x_forests[[cur_forest_id]] <<- c(x_forests[[cur_forest_id]], next_x)
+          y_forests[[cur_forest_id]] <<- c(y_forests[[cur_forest_id]], next_y)
           added <- TRUE 
         }
       }
     }
+    merge_forests()
   }
   
+  
+  # merge_forests: merges the forests so connected forests share the same id
+  merge_forests <- function() {
+    for (x in 1:x_length) {
+      for(y in 1:y_length) {
+        merge_direction(x, y, x + 1, y)
+        merge_direction(x, y, x - 1, y)
+        merge_direction(x, y, x, y - 1)
+        merge_direction(x, y, x, y + 1)
+      }
+    }
+  }
+  
+  
+  # merge_direction: helper function for merge_forests. checks cells in the 
+  # given direction to merge the forests
+  merge_direction <- function (x, y, x_new, y_new) {
+    cur_forest_id <- forest_id_grid[x, y]
+    if(cur_forest_id != 0 && in_bounds(x_new, y_new)) {
+      new_forest_id <- forest_id_grid[x_new, y_new]
+      if(new_forest_id != 0 && new_forest_id != cur_forest_id) {
+        for(i in x_forests[new_forest_id]) {
+          for(j in y_forests[new_forest_id]) {
+            forest_id_grid[i, j] <<- cur_forest_id
+            x_forests[[cur_forest_id]] <<- c(x_forests[[cur_forest_id]], i)
+            y_forests[[cur_forest_id]] <<- c(y_forests[[cur_forest_id]], j)
+          }
+        }
+        x_forests[[new_forest_id]] <<- vector()
+        y_forests[[new_forest_id]] <<- vector()
+      }
+    }
+  }
   
   # get_path: returns list of cells on path
   get_path <- function(x_orig, y_orig, direction, dist) {
@@ -377,6 +418,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   # generate grids
   x_forested <- vector()
   y_forested <- vector()
+  x_forests <- list()
+  y_forests <- list()
   gen_grids()
   
   # grow forests
@@ -398,9 +441,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   dev.copy(jpeg, file_name_jpg_map)
   dev.off()
   
-  crossed <- 0
   simulate_movement()
-  avg_dist <- avg_dist_forests()
+  avg_dist_forests <- avg_dist_forests()
   
   # create/save the 'post' map visual 
   grid_1 <- replace(move_grid, is.na(move_grid), -10)
@@ -431,6 +473,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
   
-  return(c(freq[2,1], crossed, avg_dist, total_distance)) 
+  return(c(freq[2,1], crossed_matrix_counter, avg_dist_forests, total_distance)) 
 }
 
