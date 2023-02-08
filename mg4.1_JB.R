@@ -9,16 +9,18 @@
 # y_length        : y size of grid
 # count_forest    : number of forests
 # percent_forest  : percent of grid that is forested
-# steps           : number of steps for simulation to run
+# steps           : number of steps for simulation to run, 1 step = 3 hours
 # max_dist        : maximum distance a peccary can move in one step
 # iter            : number of iterations
 
 # description of time and space units: each cell is 30x30 meters
-# each step represents 3 hours
+# each step represents 3 hours, each month contains 30 days, 360 days in a year
 
 DRY <- 1
 WET <- 2
 DEPLETION_LEVEL_CUTOFF <- 60
+STUCK_TIMER <- 10
+MAX_CROSSING_DISTANCE <- 20 # 600 meters divided into 30x30 meter cells
 
 simulate_movement <- function(x_length, y_length, count_forest, percent_forest, 
                              steps, max_dist, iter) {
@@ -31,7 +33,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   # gen_grids: Generates move_grid and forest_grid by placing forests in randomly sampled
   # coordinates. 
   gen_grids <- function() {
-    
     for (i in 1:count_forest) {
       x <- sample(1:x_length, 1)
       y <- sample(1:y_length, 1)
@@ -49,7 +50,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       forest_id_grid[x, y] <<- i
       
       #update the forest id
-      update_forest_id(x, y)
+      #update_forest_id(x, y)
       x_forested <<- c(x_forested, x)
       y_forested <<- c(y_forested, y)
     }
@@ -67,6 +68,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     depleted_counter <<- 0
     non_depleted_counter <<- 0
     stuck_counter <- 0
+    crossed_matrix_counter <<- 0
+    total_distance <<- 0
     
     for (i in 1:steps) {
 
@@ -82,40 +85,52 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       direction <- sample(1:4, 1)
       dist <- calculate_walk_distance(month, depletion_level)
       path <- next_path(start_x, start_y, direction, dist)
-      stuck_timer <- 10
+      stuck_timer <- STUCK_TIMER
       while (is.null(path) && stuck_timer != 0) {
         direction <- sample(1:4, 1)
         dist <- calculate_walk_distance(month, depletion_level)
         path <- next_path(start_x, start_y, direction, dist)
-        stuck_timer <- stuck_timer - 10
+        stuck_timer <- stuck_timer - 1
       }
       if(stuck_timer != 0) {
         end_index <- walk(path)
         start_x <- end_index[1]
         start_y <- end_index[2]
+        total_distance <<- total_distance + dist
       } else {
         depleted_counter <- depleted_counter + 1
         stuck_counter <- stuck_counter + 1
       }
     }
-    print('depleted_counter')
-    print(depleted_counter)
-    print('non_depleted_counter')
-    print(non_depleted_counter)
-    print('stuck_counter')
-    print(stuck_counter)
   }
 
   
   # next_path: generate next path
   next_path <- function(x, y, direction, dist) {
     endpoint <- get_coor(x, y, direction, dist)
-    # verify endpoint is in bounds and forested
-    if (in_bounds(endpoint[1], endpoint[2]) && !is.na(move_grid[endpoint[1], 
-                                                                endpoint[2]])) {
+    # verify endpoint is in bounds and forested. if not forested, verify it is within view of another forest
+    if (in_bounds(endpoint[1], endpoint[2]) 
+        && (!is.na(move_grid[endpoint[1], endpoint[2]]) 
+        || forest_in_sight(endpoint[1], endpoint[2], dist))) {
       return(get_path(x, y, direction, dist))
     }
     return(c())
+  }
+  
+  
+  # forest_in_sight: return true if there is a forest within the maximum 
+  # crossing distance before a peccary decides to move.
+  forest_in_sight <- function(x, y, dist_traveled) {
+    max_distance_to_forest <- MAX_CROSSING_DISTANCE - dist_traveled
+    for (direction in 1:4) {
+      for(endpoint in get_path(x, y, direction, max_distance_to_forest)) {
+        if(in_bounds(endpoint[1], endpoint[2])
+           && !is.na(move_grid[endpoint[1], endpoint[2]])) {
+          return(TRUE)
+        }
+      }
+    }
+    return(FALSE)
   }
   
   
@@ -124,6 +139,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     x_coors <- path[1,]
     y_coors <- path[2,]
     len <- length(x_coors)
+    crossed_matrix <- FALSE
     depletion_sum <- 0
     for (i in 1:len) {
       if ((!is.na(move_grid[x_coors[i], y_coors[i]]))) {
@@ -134,6 +150,10 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         depletion_sum <- depletion_sum + energy_grid[x_coors[i],
                                                      y_coors[i]]
         energy_grid[x_coors[i], y_coors[i]] <<- 0
+      }
+      if (!crossed_matrix && is.na(forest_id_grid[x_coors[i], y_coors[i]])) {
+        crossed_matrix_counter <- crossed_forest_counter + 1
+        crossed_matrix = TRUE
       }
     }
     depletion_level <<- depletion_sum / len
@@ -166,29 +186,25 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   
   # update_forest_id : sets neighboring forest cells to same forest id
   update_forest_id <- function(cur_x, cur_y) {
-    # cur_num is the forest id
-    cur_num <- forest_id_grid[cur_x, cur_y]
+    forest_id <- forest_id_grid[cur_x, cur_y]
     left <- get_coor(cur_x, cur_y, 1, 1)
     up <- get_coor(cur_x, cur_y, 2, 1)
     right <- get_coor(cur_x, cur_y, 3, 1)
     down <- get_coor(cur_x, cur_y, 4, 1)
     
     if (in_bounds(left[1], left[2]) && forest_id_grid[left[1], left[2]] != 0 && 
-        forest_id_grid[left[1], left[2]] != cur_num) {
-      forest_id_grid[forest_id_grid==forest_id_grid[left[1], left[2]]] <<- 
-        cur_num
+        forest_id_grid[left[1], left[2]] != forest_id) {
+      forest_id_grid[left[1], left[2]] <<- forest_id
     } else if (in_bounds(up[1], up[2]) &&  forest_id_grid[up[1], up[2]] != 0 && 
-               forest_id_grid[up[1], up[2]] != cur_num) {
-      forest_id_grid[forest_id_grid== forest_id_grid[up[1], up[2]]] <<- cur_num
+               forest_id_grid[up[1], up[2]] != forest_id) {
+      forest_id_grid[up[1], up[2]] <<- forest_id
     } else if (in_bounds(right[1], right[2]) && forest_id_grid[right[1], 
                                                                right[2]] != 0 &&
-               forest_id_grid[right[1], right[2]] != cur_num) {
-      forest_id_grid[forest_id_grid==forest_id_grid[right[1], right[2]]] <<- 
-        cur_num
+               forest_id_grid[right[1], right[2]] != forest_id) {
+      forest_id_grid[right[1], right[2]] <<- forest_id
     } else if (in_bounds(down[1], down[2]) && forest_id_grid[down[1], down[2]] 
-               != 0 && forest_id_grid[down[1], down[2]] != cur_num) {
-      forest_id_grid[forest_id_grid==forest_id_grid[down[1], down[2]]] <<- 
-        cur_num
+               != 0 && forest_id_grid[down[1], down[2]] != forest_id) {
+      forest_id_grid[down[1], down[2]] <<- forest_id
     }
   }
 
@@ -371,6 +387,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   }
   grow_forests()
 
+  browser()
+  
   # save & output results to file_name
   file_name <- paste("Uniform", toString(count_forest), 
                      toString(percent_forest), toString(steps), iter, sep="_")
@@ -415,6 +433,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
   
-  return(c(freq[2,1], crossed, avg_dist)) 
+  return(c(freq[2,1], crossed, avg_dist, total_distance)) 
 }
 
