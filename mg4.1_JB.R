@@ -70,7 +70,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     depletion_level <<- 100
     depleted_counter <<- 0
     non_depleted_counter <<- 0
-    stuck_counter <- 0
+    stuck_counter <<- 0
     crossed_matrix_counter <<- 0
     total_distance <<- 0
     
@@ -102,7 +102,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         total_distance <<- total_distance + dist
       } else {
         depleted_counter <- depleted_counter + 1
-        stuck_counter <- stuck_counter + 1
+        stuck_counter <<- stuck_counter + 1
       }
     }
   }
@@ -473,6 +473,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
   
-  return(c(freq[2,1], crossed_matrix_counter, avg_dist_forests, total_distance)) 
+  return(c(freq[2,1], crossed_matrix_counter, avg_dist_forests, total_distance, stuck_counter)) 
 }
 
