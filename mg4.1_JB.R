@@ -85,12 +85,12 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         energy_grid <- apply(energy_grid, 1:2, restore_cell_energy)
       }
       
-      direction <- sample(1:4, 1)
+      direction <- sample(1:8, 1)
       dist <- calculate_walk_distance(month, depletion_level)
       path <- next_path(start_x, start_y, direction, dist)
       stuck_timer <- STUCK_TIMER
       while (is.null(path) && stuck_timer != 0) {
-        direction <- sample(1:4, 1)
+        direction <- sample(1:8, 1)
         dist <- calculate_walk_distance(month, depletion_level)
         path <- next_path(start_x, start_y, direction, dist)
         stuck_timer <- stuck_timer - 1
@@ -125,7 +125,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   # crossing distance before a peccary decides to move.
   forest_in_sight <- function(x, y, dist_traveled) {
     max_distance_to_forest <- MAX_CROSSING_DISTANCE - dist_traveled
-    for (direction in 1:4) {
+    for (direction in c(1, 3, 5, 7)) {
       for(endpoint in get_path(x, y, direction, max_distance_to_forest)) {
         if(in_bounds(endpoint[1], endpoint[2])
            && !is.na(move_grid[endpoint[1], endpoint[2]])) {
@@ -168,20 +168,34 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   in_bounds <- function(x, y) {
     check_x <- (x > 0) && (x <= x_length)
     check_y <- (y > 0) && (y <= y_length)
-    return (check_x && check_y) 
+    return(check_x && check_y) 
   }
 
+  # get_diag_dist: helper function to calculate the distance a peccary must
+  # travel in each cardinal direction
+  get_diag_dist <- function(distance) {
+    return (round(sqrt((distance^2)/2)))
+  }
   
-  # get_coor: Gets the new coordinate after move (1, 2, 3, 4 = left, up, right, down)
+  # get_coor: Gets the new coordinate after move (1, 3, 5, 7 = left, up, right, down)
   get_coor <- function(x, y, direction, distance) {
+    if (direction %% 2 == 0) { distance = get_diag_dist(distance) }
     if (direction == 1) {
       new_coor <- c(x - distance, y)
     } else if (direction == 2) {
-      new_coor <- c(x, y + distance)
+      new_coor <- c(x - distance, y + distance)
     } else if (direction == 3) {
+      new_coor <- c(x, y + distance)
+    } else if (direction == 4) {
+      new_coor <- c(x + distance, y + distance)
+    } else if (direction == 5) {
       new_coor <- c(x + distance, y)
-    } else {
+    } else if (direction == 6) {
+      new_coor <- c(x + distance, y - distance)
+    } else if (direction == 7) {
       new_coor <- c(x, y - distance)
+    } else {
+      new_coor <- c(x - distance, y - distance)
     }
     return(new_coor)  
   }
@@ -191,9 +205,9 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   update_forest_id <- function(cur_x, cur_y) {
     forest_id <- forest_id_grid[cur_x, cur_y]
     left <- get_coor(cur_x, cur_y, 1, 1)
-    up <- get_coor(cur_x, cur_y, 2, 1)
-    right <- get_coor(cur_x, cur_y, 3, 1)
-    down <- get_coor(cur_x, cur_y, 4, 1)
+    up <- get_coor(cur_x, cur_y, 3, 1)
+    right <- get_coor(cur_x, cur_y, 5, 1)
+    down <- get_coor(cur_x, cur_y, 7, 1)
     
     if (in_bounds(left[1], left[2]) && forest_id_grid[left[1], left[2]] != 0 && 
         forest_id_grid[left[1], left[2]] != forest_id) {
@@ -221,7 +235,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         index <- sample(1:length(x_forested), 1)
         x <- x_forested[index]
         y <- y_forested[index]
-        direction <- sample(1:4, 1)
+        direction <- sample(c(1, 3, 5, 7), 1)
         to_add <- get_coor(x, y, direction, 1)
         next_x <- to_add[1]
         next_y <- to_add[2]
@@ -286,12 +300,33 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     if(dist == 0) {
       return(rbind(x_path, y_path))
     }
-    for (i in 1:dist) {
-      nextCoor <- get_coor(x, y, direction, 1)
-      x <- nextCoor[1]
-      y <- nextCoor[2]
-      x_path <- c(x_path, x)
-      y_path <- c(y_path, y)
+    if(direction %% 2 == 0) {
+      for (i in 1:get_diag_dist(dist)) {
+        directions = c()
+        if(direction == 8) {
+          directions = c(7, 1)
+        } else {
+          directions = c(direction - 1, direction + 1)
+        }
+        nextCoor <- get_coor(x, y, directions[1], 1)
+        x <- nextCoor[1]
+        y <- nextCoor[2]
+        x_path <- c(x_path, x)
+        y_path <- c(y_path, y)
+        nextCoor <- get_coor(x, y, directions[2], 1)
+        x <- nextCoor[1]
+        y <- nextCoor[2]
+        x_path <- c(x_path, x)
+        y_path <- c(y_path, y)
+      }
+    } else {
+      for (i in 1:dist) {
+        nextCoor <- get_coor(x, y, direction, 1)
+        x <- nextCoor[1]
+        y <- nextCoor[2]
+        x_path <- c(x_path, x)
+        y_path <- c(y_path, y)
+      }
     }
     return(rbind(x_path, y_path))
   }
