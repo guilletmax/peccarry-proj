@@ -335,6 +335,10 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   # calculate distance
   calculate_walk_distance <- function(month, depletion_level) {
     season <- calculate_season(month)
+    #introduce stochasticity into depletion level cutoff
+    depletion_level_cutoff<-rnorm(1,DEPLETION_LEVEL_CUTOFF,(DEPLETION_LEVEL_CUTOFF/10))
+    #introduce stochasticity into threshold between short and long range steps
+    threshold<-rnorm(1,494,(494/10))
     if(depletion_level < DEPLETION_LEVEL_CUTOFF) {
       depleted = TRUE
       depleted_counter <<- depleted_counter + 1
@@ -346,13 +350,13 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       if (!depleted) {
         # for dry season if local patches not depleted
         step <- rgpd(1,scale = 563.5,shape=-0.12)
-        while(step > 494){
+        while(step > threshold){
           step <- rgpd(1,scale = 563.5,shape=-0.12)
         }
       } else {
         #for dry season if local patches depleted
         step <- rgpd(1,scale = 563.5,shape=-0.12)
-        while(step < 494){
+        while(step < threshold){
           step <- rgpd(1,scale = 563.5,shape=-0.12)
         }
       }
@@ -360,13 +364,13 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       if (!depleted) {
         # for wet season if local patches not depleted
         step <- rgpd(1,scale = 432.6,shape=-0.029)
-        while(step > 494){
+        while(step > threshold){
           step <- rgpd(1,scale = 432.6,shape=-0.029)
         }
       } else {
         # for wet season if local patches depleted
         step <- rgpd(1,scale = 432.6,shape=-0.029)
-        while(step < 494){
+        while(step < threshold){
           step <- rgpd(1,scale = 432.6,shape=-0.029)
         }
       }
