@@ -23,6 +23,7 @@ times_crossed_data <- matrix(0L, nrow =  10, ncol = max_iter)
 dist_bw_patches_data <- matrix(0L, nrow = 10, ncol = max_iter)
 avg_daily_dist_data <- matrix(0L, nrow = 10, ncol = max_iter)
 stuck_counter_data <- matrix(0L, nrow = 10, ncol = max_iter)
+max_dist_bw_patches_data <- matrix(0L, nrow = 10, ncol = max_iter)
 
 steps <- years * 360 * 8       # number of steps for simulation to run ( 2880 = 1 year )
 
@@ -38,6 +39,7 @@ for (percent_forest in seq(from=100, to=10, by=-10)) {
     dist_bw_patches_data[percent_forest / 10, iter] <- result[3]
     avg_daily_dist_data[percent_forest / 10, iter] <- result[4] / (years * 360)
     stuck_counter_data[percent_forest / 10, iter] <- result[5]
+    max_dist_bw_patches_data[percent_forest / 10, iter] <- result[6]
   }
 }
 
@@ -56,6 +58,7 @@ write.csv(times_crossed_data, file = "total_crossing_freq.csv")
 write.csv(dist_bw_patches_data, file = "avg_dist.csv")
 write.csv(avg_daily_dist_data, file = "avg_daily_dist.csv")
 write.csv(stuck_counter_data, file = "stuck_counter.csv")
+write.csv(max_dist_bw_patches_data, file = "max_dist_bw_patches.csv")
 
 for (i in 1:10) {
   plot(dist_bw_patches_data[i,], freq_holder_data[i,], ylab = "Percent of unused forest", xlab = "Avg distance between forest patches")
