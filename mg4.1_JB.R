@@ -71,6 +71,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
     depleted_counter <<- 0
     non_depleted_counter <<- 0
     stuck_counter <<- 0
+    curr_consecutive_stuck_counter <<- 0
+    consecutive_stuck_counter <<- c(0)
     crossed_matrix_counter <<- 0
     total_distance <<- 0
     
@@ -100,9 +102,17 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
         start_x <- end_index[1]
         start_y <- end_index[2]
         total_distance <<- total_distance + dist
+        if(curr_consecutive_stuck_counter != 0) {
+          if(is.na(consecutive_stuck_counter[curr_consecutive_stuck_counter])) {
+            consecutive_stuck_counter[curr_consecutive_stuck_counter] <<- 0
+          }
+          consecutive_stuck_counter[curr_consecutive_stuck_counter] <<- consecutive_stuck_counter[curr_consecutive_stuck_counter] + 1
+          curr_consecutive_stuck_counter <<- 0
+        }
       } else {
         depleted_counter <- depleted_counter + 1
         stuck_counter <<- stuck_counter + 1
+        curr_consecutive_stuck_counter <<- curr_consecutive_stuck_counter + 1
       }
     }
   }
@@ -511,6 +521,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   freq = rbind(freq, percents)
   file_name_csv <- paste(file_name, "freq", ".csv", sep = "")
   write.csv(freq, file = file_name_csv)
+  write.csv(consecutive_stuck_counter, file = paste("consecutive_stuck_counter.csv", percent_forest, iter, sep = "_"))
   
   return(c(freq[2,1], crossed_matrix_counter, avg_dist_forests, total_distance, stuck_counter)) 
 }
