@@ -135,7 +135,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   # crossing distance before a peccary decides to move.
   forest_in_sight <- function(x, y, dist_traveled) {
     max_distance_to_forest <- MAX_CROSSING_DISTANCE - dist_traveled
-    for (direction in c(1, 3, 5, 7)) {
+    for (direction in 1:8) {
       for(endpoint in get_path(x, y, direction, max_distance_to_forest)) {
         if(in_bounds(endpoint[1], endpoint[2])
            && !is.na(move_grid[endpoint[1], endpoint[2]])) {
