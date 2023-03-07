@@ -465,6 +465,7 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       return(0)
     }
     for(i in 1:(patch_num - 1)) {
+      min_dist_bw_forests <- 999999999.0
       for(j in (i+1):patch_num) {
         forest_i <- which(forest_id_grid == forests[i], arr.ind=TRUE)
         forest_j <- which(forest_id_grid == forests[j], arr.ind=TRUE)
@@ -479,9 +480,12 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
             }
           }
         }
-        if(max_dist < min_distance) {
-          max_dist <- min_distance
+        if(min_dist_bw_forests > min_distance) {
+          min_dist_bw_forests <- min_distance
         }
+      }
+      if(max_dist < min_dist_bw_forests) {
+        max_dist <- min_dist_bw_forests
       }
     }
     return(max_dist)
