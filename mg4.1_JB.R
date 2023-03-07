@@ -465,20 +465,14 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
       return(0)
     }
     for(i in 1:(patch_num - 1)) {
-      for(j in (i+1):patch_num) {
-        forest_i <- which(forest_id_grid == forests[i], arr.ind=TRUE)
-        forest_j <- which(forest_id_grid == forests[j], arr.ind=TRUE)
-        
-        # find min distance between forest_i and forest_j
-        min_distance <- 999999999.0
-        for(n in nrow(forest_i)) {
-          for(m in nrow(forest_j)) {
-            curr_distance <- euc_distance(forest_i[n,], forest_j[m,])
-            if(curr_distance < min_distance) {
-              min_distance <- curr_distance
-            }
-          }
+      min_dist_bw_forests <- 999999999.0
+      if(min_dist_bw_forests > min_distance) {
+          min_dist_bw_forests <- min_distance
         }
+      }
+      if(max_dist < min_dist_bw_forests) {
+        max_dist <- min_dist_bw_forests
+      }
         if(max_dist < min_distance) {
           max_dist <- min_distance
         }
