@@ -26,6 +26,19 @@ rate parameter of the associated exponential distribution varied per peccary, we
 ### Energy Habitat Data ###
 TODO- summarize where the data came from for measuring growth rates of forests
 
+### Variables
+#### Inputs
+1. percent forest cover
+2. number of fragments
+3. max distance between isolated forest units
+#### Outputs
+1. stuck rates
+2. proportion of forest used
+3. crossing
+4. time in depleted state
+#### Model Parameters
+TBD
+
 ### Entitities, State Variables, and Scales ###
 The landscape of the model is a grid of X by X cells, with each cell representing 30 m x 30 m. Each cell is either forested or matrix, and the number of times each forested cell is visited is stored. The model includes one type of agent, a single peccary herd, which moves across the landscape. The herds location is tracked in x and y in a cartesian coordinate system. Each time step represents a three-hour period. The model runs until the specified number of time is reached.
 
