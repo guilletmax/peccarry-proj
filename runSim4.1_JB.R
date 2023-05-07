@@ -12,8 +12,8 @@ library(ggplot2)
 # UPDATE VARS
 
 setwd("~/workspace/peccary-proj/results")
-x_length <- 50      # x size of grid
-y_length <- 50      # y size of grid
+x_length <- 100      # x size of grid
+y_length <- 100      # y size of grid
 count_forest <- 7   # number of forests
 years <- 1         # duration of run
 max_iter <- 3      # number of iterations

@@ -459,33 +459,33 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   max_dist_bw_forests <- function() {
     forests <- sort(unique(as.vector(forest_id_grid)))[-1]
     patch_num <- length(forests)
-    max_dist <- 0
+    max_dist <- -1
     count <- 0
     if(patch_num < 2) {
       return(0)
     }
     for(i in 1:(patch_num - 1)) {
-      min_dist_bw_forests <- 999999999.0
+      dist_to_closest_forest <- 999999999999.0
       for(j in (i+1):patch_num) {
         forest_i <- which(forest_id_grid == forests[i], arr.ind=TRUE)
         forest_j <- which(forest_id_grid == forests[j], arr.ind=TRUE)
         
         # find min distance between forest_i and forest_j
-        min_distance <- 999999999.0
-        for(n in nrow(forest_i)) {
-          for(m in nrow(forest_j)) {
-            curr_distance <- euc_distance(forest_i[n,], forest_j[m,])
+        min_distance <- 9999999999999.0
+        for(i_row in 1:nrow(forest_i)) {
+          for(j_row in 1:nrow(forest_j)) {
+            curr_distance <- euc_distance(forest_i[i_row,], forest_j[j_row,])
             if(curr_distance < min_distance) {
               min_distance <- curr_distance
             }
           }
         }
-        if(min_distance < min_dist_bw_forests) {
-          min_dist_bw_forests <- min_distance
+        if(min_distance < dist_to_closest_forest) {
+          dist_to_closest_forest <- min_distance
         }
       }
-      if(min_dist_bw_forests > max_dist) {
-        max_dist <- min_dist_bw_forests
+      if(dist_to_closest_forest > max_dist) {
+        max_dist <- dist_to_closest_forest
       }
     }
     return(max_dist)
@@ -527,7 +527,8 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   
   simulate_movement()
   # avg_dist_forests <- avg_dist_forests()
-  # max_dist_bw_forests <- max_dist_bw_forests()
+  
+  max_dist_bw_forests <- max_dist_bw_forests()
   
   # create/save the 'post' map visual 
   grid_1 <- replace(move_grid, is.na(move_grid), -10)
@@ -560,6 +561,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   write.csv(consecutive_stuck_counter, file = paste("consecutive_stuck_counter.csv", percent_forest, iter, sep = "_"))
   
   #return(c(freq[2,1], crossed_matrix_counter, avg_dist_forests, total_distance, stuck_counter, max_dist_bw_forests)) 
-  return(c(freq[2,1], crossed_matrix_counter, -1, total_distance, stuck_counter, -1)) 
+  return(c(freq[2,1], crossed_matrix_counter, -1, total_distance, stuck_counter, max_dist_bw_forests)) 
 }
 
