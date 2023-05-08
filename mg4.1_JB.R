@@ -561,6 +561,6 @@ simulate_movement <- function(x_length, y_length, count_forest, percent_forest,
   write.csv(consecutive_stuck_counter, file = paste("consecutive_stuck_counter.csv", percent_forest, iter, sep = "_"))
   
   #return(c(freq[2,1], crossed_matrix_counter, avg_dist_forests, total_distance, stuck_counter, max_dist_bw_forests)) 
-  return(c(freq[2,1], crossed_matrix_counter, -1, total_distance, stuck_counter, max_dist_bw_forests)) 
+  return(c(freq[2,1], crossed_matrix_counter, -1, total_distance, stuck_counter, max_dist_bw_forests, depleted_counter)) 
 }
 

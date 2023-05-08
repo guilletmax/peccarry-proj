@@ -12,8 +12,8 @@ library(ggplot2)
 # UPDATE VARS
 
 setwd("~/workspace/peccary-proj/results")
-x_length <- 100      # x size of grid
-y_length <- 100      # y size of grid
+x_length <- 50      # x size of grid
+y_length <- 50      # y size of grid
 count_forest <- 7   # number of forests
 years <- 1         # duration of run
 max_iter <- 3      # number of iterations
@@ -24,6 +24,7 @@ dist_bw_patches_data <- matrix(0L, nrow = 10, ncol = max_iter)
 avg_daily_dist_data <- matrix(0L, nrow = 10, ncol = max_iter)
 stuck_counter_data <- matrix(0L, nrow = 10, ncol = max_iter)
 max_dist_bw_patches_data <- matrix(0L, nrow = 10, ncol = max_iter)
+depleted_counter_data <- matrix(0L, nrow = 10, ncol = max_iter)
 
 steps <- years * 360 * 8       # number of steps for simulation to run ( 2880 = 1 year )
 
@@ -40,6 +41,7 @@ for (percent_forest in seq(from=100, to=10, by=-10)) {
     avg_daily_dist_data[percent_forest / 10, iter] <- result[4] / (years * 360)
     stuck_counter_data[percent_forest / 10, iter] <- result[5]
     max_dist_bw_patches_data[percent_forest / 10, iter] <- result[6]
+    depleted_counter_data[percent_forest / 10, iter] <- result[7]
   }
 }
 
@@ -59,6 +61,7 @@ write.csv(dist_bw_patches_data, file = "avg_dist.csv")
 write.csv(avg_daily_dist_data, file = "avg_daily_dist.csv")
 write.csv(stuck_counter_data, file = "stuck_counter.csv")
 write.csv(max_dist_bw_patches_data, file = "max_dist_bw_patches.csv")
+write.csv(depleted_counter_data, file = "depleted_counter.csv")
 
 for (i in 1:10) {
   plot(dist_bw_patches_data[i,], freq_holder_data[i,], ylab = "Percent of unused forest", xlab = "Avg distance between forest patches")
