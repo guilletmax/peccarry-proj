@@ -63,9 +63,9 @@ write.csv(stuck_counter_data, file = "stuck_counter.csv")
 write.csv(max_dist_bw_patches_data, file = "max_dist_bw_patches.csv")
 write.csv(depleted_counter_data, file = "depleted_counter.csv")
 
-for (i in 1:10) {
-  plot(dist_bw_patches_data[i,], freq_holder_data[i,], ylab = "Percent of unused forest", xlab = "Avg distance between forest patches")
-  dev.copy(jpeg, paste("avg0byDist", 
-                       i*10, ".jpeg", sep = ""))
-  dev.off()
-}
+#for (i in 1:10) {
+#  plot(dist_bw_patches_data[i,], freq_holder_data[i,], ylab = "Percent of unused forest", xlab = "Avg distance between forest patches")
+#  dev.copy(jpeg, paste("avg0byDist", 
+#                       i*10, ".jpeg", sep = ""))
+#  dev.off()
+#}
