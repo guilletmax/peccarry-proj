@@ -37,7 +37,14 @@ TODO- summarize where the data came from for measuring growth rates of forests
 3. crossing
 4. time in depleted state
 #### Model Parameters
-TBD
+1. x_length, x size of grid
+2. y_length, y size of grid
+3. count_forest, number of forest seeds
+4. years, number of years for model to run
+5. max_iter, number of iterations at each forest cover percentage
+6. depletion_level_cutoff, constant that determines the cutoff for a depleted peccary state
+7. stuck_timer, number of consecutive iterations in a depleted state to establish a stuck state
+8. max_crossing_distance, maximum amount of distance a peccary must be from another forested cell in order to travel
 
 ### Entitities, State Variables, and Scales ###
 The landscape of the model is a grid of X by X cells, with each cell representing 30 m x 30 m. Each cell is either forested or matrix, and the number of times each forested cell is visited is stored. The model includes one type of agent, a single peccary herd, which moves across the landscape. The herds location is tracked in x and y in a cartesian coordinate system. Each time step represents a three-hour period. The model runs until the specified number of time is reached.
